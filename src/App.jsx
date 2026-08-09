@@ -4,6 +4,7 @@ import { db } from "./firebase";
 import { STORE_NAME, STORE_TAGLINE } from "./config";
 import ProductGrid from "./components/ProductGrid";
 import "./App.css";
+import FAQSection from "./FAQSection";
 
 export default function App() {
   const [products, setProducts] = useState([]);
@@ -113,6 +114,11 @@ export default function App() {
         {status === "ready" && visible.length > 0 && <ProductGrid products={visible} />}
       </main>
 
+        <div style={{marginBottom:"150px"}}>
+
+        
+      <FAQSection />
+      </div>
       <footer className="site-footer">
         <p>Questions about a cover? Tap "Ask on WhatsApp" on any product.</p>
       </footer>

@@ -14,6 +14,50 @@ function formatPrice(value, currency = "INR") {
   }
 }
 
+function formatReviewCount(count) {
+  if (count === undefined || count === null) return null;
+  const n = Number(count);
+  if (Number.isNaN(n)) return null;
+  if (n >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k`;
+  return `${n}`;
+}
+
+// Simple string hash -> deterministic pseudo-random number generator.
+// Same seed always produces the same sequence, so a product's "random"
+// rating/review count stays stable across re-renders instead of jumping
+// around every time the component draws.
+function seededRandom(seed) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) {
+    h = (h << 5) - h + seed.charCodeAt(i);
+    h |= 0;
+  }
+  return function next() {
+    h = (h * 1103515245 + 12345) & 0x7fffffff;
+    return h / 0x7fffffff;
+  };
+}
+
+// Generates a plausible rating (4.0–5.0) and review count (12–980) when a
+// product doesn't already specify its own. Seeded by the product's id/name
+// so the same product always gets the same "random" numbers.
+function getDisplayRating(product) {
+  const hasRating = product.rating !== undefined && product.rating !== null && product.rating !== "";
+  const hasCount = product.reviewCount !== undefined && product.reviewCount !== null;
+
+  if (hasRating && hasCount) {
+    return { rating: product.rating, reviewCount: product.reviewCount };
+  }
+
+  const seed = String(product.id ?? product.name ?? product.model ?? "product");
+  const rand = seededRandom(seed);
+
+  const rating = hasRating ? Number(product.rating) : Math.round((4.5 + rand() * 0.5) * 100) / 100;
+  const reviewCount = hasCount ? Number(product.reviewCount) : Math.floor(12 + rand() * 968);
+
+  return { rating, reviewCount };
+}
+
 function buildWhatsAppLink(product) {
   const price = formatPrice(product.price, product.currency);
   const mrp = formatPrice(product.mrp, product.currency);
@@ -25,6 +69,49 @@ function buildWhatsAppLink(product) {
   ].filter(Boolean);
   const message = encodeURIComponent(lines.join(" "));
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
+}
+
+// Renders a 5-star row where each star can be empty, full, or half-filled
+// based on the numeric rating (e.g. 4.47 -> 4 full stars, 1 half star).
+function StarRating({ rating, reviewCount }) {
+  if (rating === undefined || rating === null || rating === "") return null;
+  const value = Number(rating);
+  if (Number.isNaN(value)) return null;
+
+  const clamped = Math.max(0, Math.min(5, value));
+  const reviews = formatReviewCount(reviewCount);
+
+  return (
+    <div className="card-rating" aria-label={`Rated ${clamped.toFixed(2)} out of 5${reviews ? `, ${reviews} reviews` : ""}`}>
+      <span className="card-rating-stars" aria-hidden="true">
+        {Array.from({ length: 5 }).map((_, i) => {
+          const diff = clamped - i;
+          let fill = "empty";
+          if (diff >= 1) fill = "full";
+          else if (diff >= 0.5) fill = "half";
+
+          return (
+            <svg key={i} className={`star star-${fill}`} viewBox="0 0 24 24" width="14" height="14">
+              <defs>
+                <linearGradient id={`star-half-${i}`}>
+                  <stop offset="50%" stopColor="currentColor" />
+                  <stop offset="50%" stopColor="transparent" stopOpacity="1" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M12 2.5l2.94 6.02 6.56.96-4.75 4.7 1.12 6.6L12 17.77l-5.87 3.01 1.12-6.6-4.75-4.7 6.56-.96L12 2.5z"
+                fill={fill === "full" ? "currentColor" : fill === "half" ? `url(#star-half-${i})` : "none"}
+                stroke="currentColor"
+                strokeWidth="1.2"
+              />
+            </svg>
+          );
+        })}
+      </span>
+      <span className="card-rating-value">{clamped.toFixed(2)}</span>
+      {reviews && <span className="card-rating-count">({reviews})</span>}
+    </div>
+  );
 }
 
 export default function ProductCard({ product }) {
@@ -48,6 +135,7 @@ export default function ProductCard({ product }) {
 
   const [activeIndex, setActiveIndex] = useState(0);
   const hasMultiple = images.length > 1;
+  const { rating: displayRating, reviewCount: displayReviewCount } = getDisplayRating(product);
 
   function showPrev(e) {
     e.preventDefault();
@@ -107,6 +195,7 @@ export default function ProductCard({ product }) {
       <div className="card-body">
         {product.model && <p className="card-model">{product.model}</p>}
         <h3 className="card-name">{product.name ?? "Untitled cover"}</h3>
+        <StarRating rating={displayRating} reviewCount={displayReviewCount} />
         {product.description && <p className="card-desc">{product.description}</p>}
 
         <div className="card-footer">
