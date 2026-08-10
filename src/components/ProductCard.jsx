@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { WHATSAPP_NUMBER } from "../config";
 
+
 function formatPrice(value, currency = "INR") {
   if (value === undefined || value === null || value === "") return null;
   try {

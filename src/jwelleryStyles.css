@@ -1,0 +1,335 @@
+/* ==========================================================================
+   DeViR Jewellery collection view — all rules are scoped under .jw-* class
+   names so they never collide with the existing Casewall (.card, .hero,
+   .chip, etc.) styles already in your stylesheet. Append this whole block
+   to your existing styles.css; nothing here overwrites anything above it.
+   ========================================================================== */
+
+.jw-view {
+  --jw-velvet: #1B1420;
+  --jw-velvet-deep: #120D16;
+  --jw-paper: #FBF7F0;
+  --jw-ink: #241B1E;
+  --jw-gold: #B8945B;
+  --jw-gold-bright: #D8B876;
+  --jw-rose: #8B3A46;
+  --jw-slate: #8A7D74;
+  --jw-line: rgba(184, 148, 91, 0.35);
+
+  --jw-font-display: 'Fraunces', serif;
+  --jw-font-body: 'Inter', sans-serif;
+  --jw-font-mono: 'IBM Plex Mono', monospace;
+
+  background: var(--jw-paper);
+  color: var(--jw-ink);
+  font-family: var(--jw-font-body);
+}
+
+/* ---------- Hero ---------- */
+.jw-hero {
+  position: relative;
+  background: radial-gradient(ellipse at 50% -10%, #2A1F30 0%, var(--jw-velvet) 55%, var(--jw-velvet-deep) 100%);
+  padding: 88px 24px 72px;
+  overflow: hidden;
+}
+.jw-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, var(--jw-gold) 0, transparent 60%),
+    radial-gradient(1px 1px at 75% 20%, var(--jw-gold) 0, transparent 60%),
+    radial-gradient(1px 1px at 60% 70%, var(--jw-gold) 0, transparent 60%),
+    radial-gradient(1px 1px at 30% 80%, var(--jw-gold) 0, transparent 60%),
+    radial-gradient(1px 1px at 90% 55%, var(--jw-gold) 0, transparent 60%),
+    radial-gradient(1px 1px at 10% 60%, var(--jw-gold) 0, transparent 60%);
+  opacity: 0.5;
+}
+.jw-hero-inner { position: relative; max-width: 800px; margin: 0 auto; text-align: center; }
+.jw-eyebrow {
+  font-family: var(--jw-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--jw-gold-bright);
+  margin: 0 0 20px;
+}
+.jw-wordmark {
+  font-family: var(--jw-font-display);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(52px, 10vw, 92px);
+  letter-spacing: 0.01em;
+  color: var(--jw-paper);
+  margin: 0;
+  line-height: 1;
+}
+.jw-wordmark-rule { width: 64px; height: 1px; background: var(--jw-gold); margin: 22px auto; }
+.jw-tagline { font-size: 15px; color: #C9BFC3; max-width: 380px; margin: 0 auto; line-height: 1.6; }
+
+/* ---------- Content shell ---------- */
+.jw-content { max-width: 1080px; margin: 0 auto; padding: 40px 24px 0; }
+
+.jw-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.jw-chip-rail { display: flex; flex-wrap: wrap; gap: 8px; }
+.jw-chip {
+  font-family: var(--jw-font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  padding: 8px 15px;
+  border-radius: 999px;
+  border: 1px solid var(--jw-line);
+  background: transparent;
+  color: var(--jw-ink);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.jw-chip:hover { border-color: var(--jw-gold); }
+.jw-chip-active { background: var(--jw-velvet); border-color: var(--jw-velvet); color: var(--jw-gold-bright); }
+
+.jw-search {
+  font-family: var(--jw-font-body);
+  font-size: 13.5px;
+  padding: 9px 15px;
+  border-radius: 999px;
+  border: 1px solid var(--jw-line);
+  background: #fff;
+  color: var(--jw-ink);
+  min-width: 200px;
+}
+.jw-search::placeholder { color: var(--jw-slate); }
+
+/* ---------- Grid ---------- */
+.jw-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 34px 20px;
+  padding-bottom: 64px;
+}
+.jw-card { display: flex; flex-direction: column; position: relative; padding-top: 26px; }
+
+.jw-card-tag { display: flex; justify-content: center; height: 26px; }
+.jw-card-tag svg { overflow: visible; }
+
+.jw-card-media {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: #fff;
+  border: 1px solid var(--jw-line);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+}
+.jw-card-media svg { width: 100%; height: 100%; }
+
+/* ---------- Media gallery controls (imageUrls carousel) ---------- */
+.jw-media-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(27, 20, 32, 0.55);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+.jw-card-media:hover .jw-media-nav,
+.jw-media-nav:focus-visible {
+  opacity: 1;
+}
+.jw-media-nav:hover { background: rgba(27, 20, 32, 0.8); }
+.jw-media-nav-prev { left: 8px; }
+.jw-media-nav-next { right: 8px; }
+
+.jw-media-dots {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.jw-media-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 0;
+  cursor: pointer;
+}
+.jw-media-dot-active {
+  background: var(--jw-gold-bright);
+  transform: scale(1.3);
+}
+
+.jw-badge-discount {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-family: var(--jw-font-mono);
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--jw-rose);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 3px;
+}
+
+.jw-card-body { padding-top: 14px; display: flex; flex-direction: column; flex: 1; }
+.jw-card-cat {
+  font-family: var(--jw-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--jw-gold);
+  margin: 0 0 5px;
+}
+.jw-card-name {
+  font-family: var(--jw-font-display);
+  font-weight: 600;
+  font-size: 18px;
+  margin: 0 0 6px;
+  line-height: 1.25;
+  min-height: 45px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.jw-card-rating { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; }
+.jw-rating-stars { display: inline-flex; gap: 1px; color: var(--jw-gold); }
+.jw-card-rating-value { font-family: var(--jw-font-mono); font-weight: 600; font-size: 12px; color: var(--jw-ink); }
+.jw-card-rating-count { font-family: var(--jw-font-mono); font-size: 12px; color: var(--jw-slate); }
+
+.jw-card-desc { font-size: 13px; color: var(--jw-slate); margin: 0 0 16px; line-height: 1.5; }
+
+.jw-card-footer { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.jw-card-price-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.jw-card-price {
+  font-family: var(--jw-font-mono);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1;
+  border: 1px solid var(--jw-ink);
+  padding: 6px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.jw-card-mrp {
+  font-family: var(--jw-font-mono);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--jw-slate);
+  text-decoration: line-through;
+  text-decoration-color: var(--jw-rose);
+  white-space: nowrap;
+}
+
+.jw-wa-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--jw-font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  color: var(--jw-paper);
+  background: var(--jw-velvet);
+  padding: 9px 14px;
+  border-radius: 999px;
+  transition: background 0.15s ease, transform 0.1s ease;
+  white-space: nowrap;
+}
+.jw-wa-button:hover { background: #2A1F30; }
+.jw-wa-button:active { transform: scale(0.97); }
+
+.jw-empty-state { text-align: center; padding: 60px 20px; color: var(--jw-slate); }
+.jw-empty-state-title { font-family: var(--jw-font-display); font-weight: 600; font-size: 19px; color: var(--jw-ink); margin: 0 0 6px; }
+
+/* ---------- FAQ ---------- */
+.jw-faq-section { max-width: 680px; margin: 0 auto; padding: 24px 24px 72px; }
+.jw-faq-eyebrow {
+  font-family: var(--jw-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--jw-gold);
+  margin: 0 0 10px;
+  text-align: center;
+}
+.jw-faq-title {
+  font-family: var(--jw-font-display);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(26px, 4vw, 34px);
+  text-align: center;
+  margin: 0 0 32px;
+}
+.jw-faq-list { border-top: 1px solid var(--jw-line); }
+.jw-faq-item { border-bottom: 1px solid var(--jw-line); }
+.jw-faq-question {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 18px 2px;
+  text-align: left;
+}
+.jw-faq-dot { flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; background: var(--jw-gold); opacity: 0.35; transition: opacity 0.15s ease; }
+.jw-faq-item-open .jw-faq-dot { opacity: 1; }
+.jw-faq-question-text { flex: 1; font-family: var(--jw-font-display); font-weight: 600; font-size: 15.5px; color: var(--jw-ink); }
+.jw-faq-icon { font-family: var(--jw-font-mono); font-size: 16px; color: var(--jw-gold); width: 18px; text-align: center; }
+.jw-faq-answer-wrap { overflow: hidden; transition: max-height 0.25s ease; }
+.jw-faq-answer { font-size: 14px; line-height: 1.6; color: var(--jw-slate); margin: 0 0 20px; padding-left: 20px; padding-right: 20px; }
+
+/* ---------- Footer ---------- */
+.jw-site-footer { border-top: 1px solid var(--jw-line); background: var(--jw-paper); text-align: center; padding: 22px; }
+.jw-site-footer p { margin: 0; font-family: var(--jw-font-mono); font-size: 11px; letter-spacing: 0.03em; color: var(--jw-slate); }
+
+/* ---------- Toolbar link (used in your existing Casewall toolbar) ---------- */
+.jw-nav-link {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ink, #171512);
+  background: transparent;
+  color: var(--ink, #171512);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.jw-nav-link:hover { background: rgba(184, 148, 91, 0.12); border-color: #B8945B; color: #8A6B3A; }
+
+@media (max-width: 480px) {
+  .jw-toolbar { flex-direction: column; align-items: stretch; }
+  .jw-search { width: 100%; }
+}
