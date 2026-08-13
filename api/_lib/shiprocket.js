@@ -195,6 +195,7 @@ export async function createShiprocketOrder(order, orderId) {
     billing_country: process.env.SHIPROCKET_COUNTRY || "India",
     billing_email: String(order.contact?.email || ""),
     billing_phone: String(order.contact?.phone || ""),
+    shipping_is_billing: true,
     shipping_customer_name: String(order.contact?.name || "Customer").slice(0, 120),
     shipping_last_name: "",
     shipping_address: shippingAddress || "N/A",
