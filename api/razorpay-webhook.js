@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { getAdminDb } from "./_lib/firebaseAdmin.js";
-import { createDelhiveryShipment } from "./_lib/delhivery.js";
+import { createShiprocketOrder } from "./_lib/shiprocket.js";
 
 // Needed so we can verify the raw request body against the signature —
 // Razorpay signs the exact bytes it sent, so any JSON re-serialization
@@ -85,13 +85,27 @@ export default async function handler(req, res) {
                 console.error("Failed to send order confirmation email (webhook):", mailErr);
               }
 
-              if (!order.delhivery?.waybill) {
+              if (!order.shiprocket?.waybill) {
                 try {
-                  const { waybill } = await createDelhiveryShipment(order, orderId);
-                  await orderRef.update({ delhivery: { waybill, bookedAt: new Date().toISOString() }, status: "shipped" });
+                  const shipment = await createShiprocketOrder(order, orderId);
+                  const waybill = shipment.waybill || shipment.trackingId || shipment.shipmentId || null;
+                  await orderRef.update({
+                    shiprocket: {
+                      waybill,
+                      trackingId: shipment.trackingId || waybill,
+                      trackingUrl: shipment.trackingUrl || null,
+                      status: shipment.status || "booked",
+                      bookedAt: new Date().toISOString(),
+                    },
+                    shiprocketOrderId: shipment.shipmentId || null,
+                    shiprocketTrackingUrl: shipment.trackingUrl || null,
+                    shiprocketStatus: shipment.status || "booked",
+                    status: "shipped",
+                    shippedAt: new Date().toISOString(),
+                  });
                 } catch (shipErr) {
-                  console.error("Delhivery shipment creation failed (webhook) for order", orderId, shipErr);
-                  await orderRef.update({ delhiveryError: String(shipErr.message || shipErr) });
+                  console.error("Shiprocket shipment creation failed (webhook) for order", orderId, shipErr);
+                  await orderRef.update({ shiprocketError: String(shipErr.message || shipErr) });
                 }
               }
             }

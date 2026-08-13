@@ -1,10 +1,10 @@
 # CASEWALL — Phone Cover Store
 
 A full storefront: customers browse products, add them to a cart, and check out with
-Razorpay. Paid orders are shipped via Delhivery, and the order-status page shows live,
-server-verified payment status. Orders are non-refundable — only replacements for
-damaged items, and only with an unboxing video (see the FAQ on the site for the exact
-policy).
+Razorpay. Paid orders are shipped through the store's shipping partner, and the order-status
+page shows live, server-verified payment status. Orders are non-refundable — only
+replacements for damaged items, and only with an unboxing video (see the FAQ on the site
+for the exact policy).
 
 ## How the checkout flow works (and why it's safe)
 
@@ -19,8 +19,8 @@ policy).
    secret key and only then marks the order `"paid"` in Firestore via the Firebase Admin
    SDK. A Razorpay **webhook** (`/api/razorpay-webhook`) does the same check
    independently, so payment confirmation doesn't rely on the browser staying open.
-5. Once paid, the server books a Delhivery shipment and stores the AWB/tracking number
-   on the order.
+5. Once paid, the server records the verified payment and leaves shipment booking to the
+   configured shipping partner integration (for example, Shiprocket).
 6. `/order/:orderId` listens to the Firestore order doc in real time (`onSnapshot`) and
    shows whatever the *server* has confirmed — the client can never write `"paid"`
    itself. `firestore.rules` denies all client writes to `orders` and `products`; every
@@ -68,7 +68,7 @@ copy its "download URL"), or any public image link. Paste that URL into `imageUr
 You don't need to touch any code to add, edit, or remove products — just edit documents in
 the Firestore console and refresh the site.
 
-## 4. Configure server-side integrations (Razorpay, Delhivery, Firebase Admin)
+## 4. Configure server-side integrations (Razorpay, Shipping Partner, Firebase Admin)
 
 These go in your **deployment platform's** environment variables (e.g. Vercel → Project →
 Settings → Environment Variables) — never in `.env`/`VITE_...` vars, since those get
@@ -77,8 +77,9 @@ bundled into the browser. Full list and where to find each value is in `.env.exa
 - `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` — Razorpay Dashboard → Settings → API Keys
 - `RAZORPAY_WEBHOOK_SECRET` — create a webhook in Razorpay for the `payment.captured`
   event pointed at `https://yourdomain.com/api/razorpay-webhook`, then paste its secret
-- `DELHIVERY_API_TOKEN`, `DELHIVERY_PICKUP_LOCATION` — from your Delhivery seller account
-  (`DELHIVERY_PICKUP_LOCATION` is the pickup/warehouse name you registered with them)
+- shipping-partner credentials for your chosen courier (Shiprocket or another provider) —
+  add them in your deployment platform's environment variables when you connect the shipping
+  integration
 - `FIREBASE_SERVICE_ACCOUNT` (or the three `FIREBASE_PROJECT_ID` / `FIREBASE_CLIENT_EMAIL`
   / `FIREBASE_PRIVATE_KEY` vars) — from the service account key you generated in step 1
 
@@ -134,13 +135,14 @@ src/
 
 api/
   create-order.js            Creates Firestore order + Razorpay order (server-priced)
-  verify-payment.js          Verifies Razorpay signature, marks order paid, books shipment
+  verify-payment.js          Verifies Razorpay signature and marks order paid
   razorpay-webhook.js        Server-to-server payment confirmation safety net
-  delhivery-track.js         Server-side shipment tracking proxy
+  shiprocket-create.js       Creates a Shiprocket order for a paid order
+  shiprocket-track.js        Tracks a shipment by AWB or order ID
   _lib/
     firebaseAdmin.js         Firebase Admin SDK singleton (server only)
     razorpay.js               Razorpay Node SDK singleton (server only)
-    delhivery.js              Delhivery shipment create/track helpers (server only)
+    shiprocket.js             Shiprocket auth, create, and tracking helpers
 
 firestore.rules              Denies all client writes to products/orders
 .env.example                 Every required client + server environment variable

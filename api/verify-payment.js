@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
 import { getAdminDb } from "./_lib/firebaseAdmin.js";
-import { createDelhiveryShipment } from "./_lib/delhivery.js";
 import { getRazorpay } from "./_lib/razorpay.js";
 import { sendOrderConfirmationEmail } from "./_lib/mailer.js";
+import { createShiprocketOrder } from "./_lib/shiprocket.js";
 
 function isValidSignature(orderId, paymentId, signature) {
   const secret = process.env.RAZORPAY_KEY_SECRET;
@@ -77,15 +77,27 @@ export default async function handler(req, res) {
       }
     }
 
-    // Best-effort shipment booking. A Delhivery hiccup should never make the
-    // customer think their payment failed — the order is already paid.
-    if (!order.delhivery?.waybill) {
+    if (!order.shiprocket?.waybill) {
       try {
-        const { waybill } = await createDelhiveryShipment(order, orderId);
-        await orderRef.update({ delhivery: { waybill, bookedAt: new Date().toISOString() }, status: "shipped" });
+        const shipment = await createShiprocketOrder(order, orderId);
+        const waybill = shipment.waybill || shipment.trackingId || shipment.shipmentId || null;
+        await orderRef.update({
+          shiprocket: {
+            waybill,
+            trackingId: shipment.trackingId || waybill,
+            trackingUrl: shipment.trackingUrl || null,
+            status: shipment.status || "booked",
+            bookedAt: new Date().toISOString(),
+          },
+          shiprocketOrderId: shipment.shipmentId || null,
+          shiprocketTrackingUrl: shipment.trackingUrl || null,
+          shiprocketStatus: shipment.status || "booked",
+          status: "shipped",
+          shippedAt: new Date().toISOString(),
+        });
       } catch (shipErr) {
-        console.error("Delhivery shipment creation failed for order", orderId, shipErr);
-        await orderRef.update({ delhiveryError: String(shipErr.message || shipErr) });
+        console.error("Shiprocket shipment creation failed for order", orderId, shipErr);
+        await orderRef.update({ shiprocketError: String(shipErr.message || shipErr) });
       }
     }
 

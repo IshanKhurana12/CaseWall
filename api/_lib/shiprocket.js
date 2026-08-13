@@ -1,0 +1,286 @@
+const DEFAULT_SHIPROCKET_BASE_URL = "https://apiv2.shiprocket.in";
+const TOKEN_CACHE_TTL_MS = 50 * 60 * 1000;
+
+let shiprocketToken = null;
+let shiprocketTokenFetchedAt = 0;
+
+function getShiprocketConfig() {
+  const baseUrl = (process.env.SHIPROCKET_BASE_URL || DEFAULT_SHIPROCKET_BASE_URL).replace(/\/+$/, "");
+  const email = process.env.SHIPROCKET_EMAIL;
+  const password = process.env.SHIPROCKET_PASSWORD;
+  const apiKey = process.env.SHIPROCKET_API_KEY;
+  const apiSecret = process.env.SHIPROCKET_API_SECRET;
+
+  if ((!email || !password) && (!apiKey || !apiSecret)) {
+    throw new Error(
+      "Missing Shiprocket credentials. Set SHIPROCKET_EMAIL + SHIPROCKET_PASSWORD or SHIPROCKET_API_KEY + SHIPROCKET_API_SECRET in the server environment."
+    );
+  }
+
+  return { baseUrl, email, password, apiKey, apiSecret };
+}
+
+async function shiprocketFetch(path, { method = "GET", body, token } = {}) {
+  const { baseUrl } = getShiprocketConfig();
+  const url = `${baseUrl}${path}`;
+  const headers = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(url, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  const text = await response.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = text;
+  }
+
+  if (!response.ok) {
+    const message = typeof data === "string" ? data : JSON.stringify(data);
+    throw new Error(`Shiprocket request failed (${response.status}): ${message}`);
+  }
+
+  return data;
+}
+
+export async function getShiprocketToken() {
+  const now = Date.now();
+  if (shiprocketToken && now - shiprocketTokenFetchedAt < TOKEN_CACHE_TTL_MS) {
+    return shiprocketToken;
+  }
+
+  const { baseUrl, email, password, apiKey, apiSecret } = getShiprocketConfig();
+
+  if (email && password) {
+    const payload = await shiprocketFetch("/v1/external/auth/login", {
+      method: "POST",
+      body: { email, password },
+    });
+
+    const token = payload?.token || payload?.data?.token || payload?.result?.token;
+    if (!token) {
+      throw new Error(`Shiprocket login response did not include a token. Response: ${JSON.stringify(payload)}`);
+    }
+
+    shiprocketToken = token;
+    shiprocketTokenFetchedAt = now;
+    return token;
+  }
+
+  const basic = Buffer.from(`${apiKey}:${apiSecret}`).toString("base64");
+  const response = await fetch(`${baseUrl}/v1/external/auth/login`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${basic}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({}),
+  });
+
+  const text = await response.text();
+  let payload = {};
+  try {
+    payload = text ? JSON.parse(text) : {};
+  } catch {
+    payload = text;
+  }
+
+  if (!response.ok) {
+    throw new Error(`Shiprocket auth failed (${response.status}): ${typeof payload === "string" ? payload : JSON.stringify(payload)}`);
+  }
+
+  const token = payload?.token || payload?.data?.token || payload?.result?.token;
+  if (!token) {
+    throw new Error(`Shiprocket login response did not include a token. Response: ${JSON.stringify(payload)}`);
+  }
+
+  shiprocketToken = token;
+  shiprocketTokenFetchedAt = now;
+  return token;
+}
+
+function normalizeTrackingResult(payload) {
+  const data = payload?.data ?? payload?.result ?? payload ?? {};
+  const trackingId = data?.tracking_id || data?.awb_code || data?.shipment_id || data?.trackingId || data?.waybill || data?.trackingID || null;
+  const trackingUrl = data?.tracking_url || data?.trackingUrl || (trackingId ? `https://shiprocket.co/tracking/${trackingId}` : null);
+  const status = data?.status || data?.shipment_status || data?.current_status || null;
+  return {
+    trackingId,
+    waybill: trackingId,
+    trackingUrl,
+    status,
+    raw: payload,
+  };
+}
+
+export async function getShiprocketServiceability({ pickupPincode, deliveryPincode, weight = 0.5, cod = 0 }) {
+  const token = await getShiprocketToken();
+  const pickup = String(pickupPincode || process.env.SHIPROCKET_PICKUP_PINCODE || "110001").trim();
+  const delivery = String(deliveryPincode || "").trim();
+  if (!delivery) {
+    throw new Error("Missing delivery pincode for Shiprocket serviceability lookup.");
+  }
+
+  const path = `/v1/external/courier/serviceability/?pickup_postcode=${encodeURIComponent(pickup)}&delivery_postcode=${encodeURIComponent(delivery)}&weight=${Number(weight || 0.5)}&cod=${Number(cod || 0)}`;
+  const response = await shiprocketFetch(path, { method: "GET", token });
+  return response?.data ?? response?.result ?? response ?? [];
+}
+
+export async function assignShiprocketAwb({ shipmentId, courierId, orderId }) {
+  const token = await getShiprocketToken();
+  const shipment = String(shipmentId || "").trim();
+  const courier = String(courierId || process.env.SHIPROCKET_COURIER_ID || "").trim();
+
+  if (!shipment) {
+    throw new Error("Missing Shiprocket shipment id before assigning AWB.");
+  }
+
+  if (!courier) {
+    throw new Error("Missing Shiprocket courierId. Set SHIPROCKET_COURIER_ID or pass courierId to assignShiprocketAwb().");
+  }
+
+  const payload = {
+    shipment_id: shipment,
+    courier_id: Number(courier),
+    order_id: String(orderId || shipment),
+  };
+
+  const response = await shiprocketFetch("/v1/external/courier/assign/awb", {
+    method: "POST",
+    body: payload,
+    token,
+  });
+
+  const data = response?.data ?? response?.result ?? response ?? {};
+  return {
+    awb: data?.awb_code || data?.awb || data?.tracking_id || null,
+    courierName: data?.courier_name || data?.courierName || null,
+    raw: data,
+  };
+}
+
+export async function createShiprocketOrder(order, orderId) {
+  const token = await getShiprocketToken();
+
+  const items = Array.isArray(order.items) ? order.items : [];
+  const shippingAmount = Number(order.shippingAmount ?? order.shippingPaise ?? 0) / 100;
+  const subtotal = Number(order.itemsAmount ?? order.amount ?? 0) / 100;
+  const billingAddress = [order.address?.line1, order.address?.line2].filter(Boolean).join(", ");
+  const shippingAddress = [order.address?.line1, order.address?.line2].filter(Boolean).join(", ");
+
+  const payload = {
+    order_id: String(orderId),
+    order_date: new Date().toISOString(),
+    pickup_location: process.env.SHIPROCKET_PICKUP_LOCATION || "default",
+    channel_id: Number(process.env.SHIPROCKET_CHANNEL_ID || 1),
+    comment: `Order ${orderId}`,
+    billing_customer_name: String(order.contact?.name || "Customer").slice(0, 120),
+    billing_last_name: "",
+    billing_address: billingAddress || "N/A",
+    billing_city: String(order.address?.city || ""),
+    billing_pincode: String(order.address?.pincode || ""),
+    billing_state: String(order.address?.state || ""),
+    billing_country: process.env.SHIPROCKET_COUNTRY || "India",
+    billing_email: String(order.contact?.email || ""),
+    billing_phone: String(order.contact?.phone || ""),
+    shipping_customer_name: String(order.contact?.name || "Customer").slice(0, 120),
+    shipping_last_name: "",
+    shipping_address: shippingAddress || "N/A",
+    shipping_city: String(order.address?.city || ""),
+    shipping_pincode: String(order.address?.pincode || ""),
+    shipping_state: String(order.address?.state || ""),
+    shipping_country: process.env.SHIPROCKET_COUNTRY || "India",
+    shipping_email: String(order.contact?.email || ""),
+    shipping_phone: String(order.contact?.phone || ""),
+    payment_method: "Prepaid",
+    sub_total: Number(subtotal || 0).toFixed(2),
+    shipping_charges: Number(shippingAmount || 0).toFixed(2),
+    total_discount: "0",
+    order_items: items.map((item) => {
+      const unitPrice = Number(item.price ?? item.unitPrice ?? item.unit_amount ?? item.amount ?? 0) / 100;
+      const quantity = Number(item.qty || item.quantity || 1);
+      return {
+        name: String(item.name || item.title || item.productName || "Product").slice(0, 120),
+        sku: String(item.productId || item.id || `item-${orderId}-${Math.random().toString(36).slice(2, 8)}`),
+        units: quantity,
+        selling_price: Number(unitPrice || 0).toFixed(2),
+      };
+    }),
+    length: Number(process.env.SHIPROCKET_PACKET_LENGTH || 10),
+    breadth: Number(process.env.SHIPROCKET_PACKET_BREADTH || 10),
+    height: Number(process.env.SHIPROCKET_PACKET_HEIGHT || 5),
+    weight: Number(process.env.SHIPROCKET_PACKET_WEIGHT || 0.5),
+  };
+
+  const response = await shiprocketFetch("/v1/external/orders/create/adhoc", {
+    method: "POST",
+    body: payload,
+    token,
+  });
+
+  const data = response?.data ?? response?.result ?? response ?? {};
+  const shipmentId = data?.shipment_id || data?.id || data?.shipmentId || data?.order_id || null;
+  const result = normalizeTrackingResult(data);
+
+  if (shipmentId && process.env.SHIPROCKET_COURIER_ID) {
+    try {
+      const assigned = await assignShiprocketAwb({
+        shipmentId,
+        courierId: process.env.SHIPROCKET_COURIER_ID,
+        orderId,
+      });
+      if (assigned.awb) {
+        result.trackingId = assigned.awb;
+        result.waybill = assigned.awb;
+        result.trackingUrl = result.trackingUrl || `https://shiprocket.co/tracking/${assigned.awb}`;
+      }
+    } catch (awberr) {
+      console.warn("Shiprocket AWB assignment skipped for order", orderId, awberr.message || awberr);
+    }
+  }
+
+  return {
+    ...result,
+    shipmentId,
+    raw: data,
+  };
+}
+
+export async function trackShiprocketShipment(identifier) {
+  const { baseUrl } = getShiprocketConfig();
+  const token = await getShiprocketToken();
+  const target = String(identifier || "").trim();
+  if (!target) {
+    throw new Error("Missing Shiprocket tracking identifier.");
+  }
+
+  const candidates = [
+    `/v1/external/courier/track/awb/${encodeURIComponent(target)}`,
+    `/v1/external/courier/track/shipment/${encodeURIComponent(target)}`,
+  ];
+
+  let lastError = null;
+  for (const path of candidates) {
+    try {
+      const response = await shiprocketFetch(path, { method: "GET", token });
+      const data = response?.data ?? response?.result ?? response ?? {};
+      return normalizeTrackingResult(data);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error(`Unable to track Shiprocket shipment ${target}.`);
+}

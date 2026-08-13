@@ -191,7 +191,7 @@ export default function CheckoutPage() {
             <span>Total</span>
             <span>{formatPrice(totalRupees)}</span>
           </div>
-          <p className="cart-summary-note">Shipping cost (via Delhivery) is confirmed for your pincode after you place the order.</p>
+          <p className="cart-summary-note">Shipping cost is confirmed for your pincode after you place the order.</p>
         </div>
 
         <form className="checkout-form" onSubmit={(e) => e.preventDefault()}>

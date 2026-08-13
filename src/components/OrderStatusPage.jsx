@@ -67,12 +67,13 @@ export default function OrderStatusPage() {
   }
 
   const status = order.status || "created";
-  const waybill = order.delhivery?.waybill;
-  const trackingUrl = waybill ? `https://www.delhivery.com/track/package/${waybill}` : null;
+  const shiprocket = order.shiprocket || {};
+  const waybill = shiprocket.waybill || shiprocket.trackingId || shiprocket.shipmentId || null;
+  const trackingUrl = shiprocket.trackingUrl || (waybill ? `https://shiprocket.co/tracking/${waybill}` : null);
 
   const statusView = {
     created: { icon: "⏳", title: "Payment processing…", sub: "We're waiting for your payment to be confirmed. This page updates automatically — no need to refresh." },
-    paid: { icon: "✅", title: "Payment confirmed!", sub: "Your order is confirmed and is being prepared for shipment via Delhivery." },
+    paid: { icon: "✅", title: "Payment confirmed!", sub: "Your order is confirmed and is being prepared for shipment." },
     payment_failed: { icon: "⚠️", title: "Payment didn't go through", sub: "Your payment wasn't completed. You can go back to your cart and try again." },
     shipped: { icon: "📦", title: "Order shipped!", sub: "Your order is on its way." },
   }[status] || { icon: "⏳", title: "Order received", sub: "We're processing your order." };
@@ -188,7 +189,7 @@ export default function OrderStatusPage() {
               </p>
             ) : (
               <p style={{ marginTop: 10, fontSize: 13, color: "var(--slate)" }}>
-                Tracking details will appear here once your shipment is booked with Delhivery.
+                Tracking details will appear here once your shipment is booked with our shipping partner.
               </p>
             )}
           </div>
