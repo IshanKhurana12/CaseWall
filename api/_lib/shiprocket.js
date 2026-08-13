@@ -158,7 +158,12 @@ export async function getShiprocketServiceability({ pickupPincode, deliveryPinco
 
   const path = `/v1/external/courier/serviceability/?pickup_postcode=${encodeURIComponent(pickup)}&delivery_postcode=${encodeURIComponent(delivery)}&weight=${Number(weight || 0.5)}&cod=${Number(cod || 0)}`;
   const response = await shiprocketFetch(path, { method: "GET", token });
-  return response?.data ?? response?.result ?? response ?? [];
+  // NOTE: Shiprocket's actual response shape is:
+  // { data: { available_courier_companies: [...], recommended_courier_company_id, ... } }
+  // Returning response.data here means callers receive the INNER object
+  // ({ available_courier_companies, recommended_courier_company_id, ... }),
+  // not a plain array and not something with a nested `.data`/`.result`.
+  return response?.data ?? response?.result ?? response ?? {};
 }
 
 export async function assignShiprocketAwb({ shipmentId, courierId, orderId }) {
@@ -202,12 +207,44 @@ export async function resolveShiprocketCourier({ pickupPincode, deliveryPincode,
   }
 
   const serviceability = await getShiprocketServiceability({ pickupPincode: pickup, deliveryPincode: delivery, weight, cod });
-  const list = Array.isArray(serviceability) ? serviceability : Array.isArray(serviceability?.data) ? serviceability.data : Array.isArray(serviceability?.result) ? serviceability.result : [];
 
-  const option = list.find((item) => {
-    const candidateId = Number(item?.courier_company_id ?? item?.courier_companyId ?? item?.courier_id ?? item?.courierId);
-    return Number.isFinite(candidateId) && (preferredCourierId == null || Number(preferredCourierId) === candidateId);
-  }) || list[0];
+  // Shiprocket's real payload nests the courier list under `available_courier_companies`.
+  // Handle every shape we might realistically receive, in order of likelihood.
+  const list = Array.isArray(serviceability)
+    ? serviceability
+    : Array.isArray(serviceability?.available_courier_companies)
+    ? serviceability.available_courier_companies
+    : Array.isArray(serviceability?.data?.available_courier_companies)
+    ? serviceability.data.available_courier_companies
+    : Array.isArray(serviceability?.data)
+    ? serviceability.data
+    : Array.isArray(serviceability?.result)
+    ? serviceability.result
+    : [];
+
+  if (!list.length) {
+    throw new Error(
+      `No Shiprocket courier available for pickup ${pickup} to delivery ${delivery}. Raw serviceability response: ${JSON.stringify(
+        serviceability
+      )}`
+    );
+  }
+
+  const recommendedId = Number(
+    serviceability?.recommended_courier_company_id ?? serviceability?.data?.recommended_courier_company_id
+  );
+
+  const option =
+    // 1. Explicit caller preference wins if it's actually in the list.
+    (preferredCourierId != null &&
+      list.find((item) => {
+        const candidateId = Number(item?.courier_company_id ?? item?.courier_companyId ?? item?.courier_id ?? item?.courierId);
+        return Number.isFinite(candidateId) && Number(preferredCourierId) === candidateId;
+      })) ||
+    // 2. Otherwise Shiprocket's own recommended courier for this route.
+    list.find((item) => Number(item?.courier_company_id ?? item?.courier_companyId ?? item?.courier_id ?? item?.courierId) === recommendedId) ||
+    // 3. Fallback to the first serviceable option.
+    list[0];
 
   if (!option) {
     throw new Error(`No Shiprocket courier available for pickup ${pickup} to delivery ${delivery}.`);
@@ -221,6 +258,7 @@ export async function resolveShiprocketCourier({ pickupPincode, deliveryPincode,
   return {
     courierId,
     courierName: option?.courier_name || option?.courierName || null,
+    rate: option?.rate ?? option?.freight_charge ?? null,
     raw: option,
   };
 }
@@ -333,7 +371,7 @@ export async function createShiprocketOrder(order, orderId) {
     throw new Error(`Shiprocket order creation did not return a shipment id. Response: ${JSON.stringify(data)}`);
   }
 
-  const pickupPincode = String(order?.address?.pincode || process.env.SHIPROCKET_PICKUP_PINCODE || "110001").trim();
+  const pickupPincode = String(process.env.SHIPROCKET_PICKUP_PINCODE || "110001").trim();
   const deliveryPincode = String(order?.address?.pincode || "").trim();
   if (!deliveryPincode) {
     throw new Error(`Order ${orderId} is missing a valid delivery pincode for Shiprocket courier selection.`);
