@@ -315,7 +315,7 @@ export default function ProductCard({ product }) {
             </div>
           )}
 
-          <a className="wa-button wa-button-secondary"
+          {/* <a className="wa-button wa-button-secondary"
             href={buildWhatsAppLink(product)}
             target="_blank"
             rel="noopener noreferrer"
@@ -326,7 +326,7 @@ export default function ProductCard({ product }) {
               <path d="M12.004 2c-5.514 0-9.997 4.478-9.997 9.997 0 1.762.464 3.484 1.345 4.997L2 22l5.144-1.342a9.96 9.96 0 004.86 1.238h.004c5.514 0 9.997-4.478 9.997-9.997 0-2.671-1.04-5.182-2.927-7.07A9.935 9.935 0 0012.004 2zm0 18.153a8.13 8.13 0 01-4.144-1.134l-.297-.176-3.054.797.815-2.978-.193-.306a8.14 8.14 0 01-1.256-4.36c0-4.501 3.66-8.161 8.162-8.161 2.18 0 4.229.85 5.77 2.393a8.106 8.106 0 012.39 5.775c-.003 4.502-3.663 8.15-8.193 8.15z" />
             </svg>
             Ask on WhatsApp instead
-          </a>
+          </a> */}
         </div>
       </div>
       <NotifyModal message={modalMsg} onClose={() => setModalMsg("")} />
