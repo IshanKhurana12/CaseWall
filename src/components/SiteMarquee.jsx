@@ -4,14 +4,13 @@ export default function SiteMarquee() {
       <div className="site-marquee-inner">
         <div className="site-marquee-track">
           <span className="site-marquee-text">
-            NOTICE: Razorpay payments are currently in test mode — online
-            payments are not accepted. Only WhatsApp orders will be
-            considered. Please place orders via WhatsApp.
+            NOTICE: Free Delivery on all orders above ₹500.
           </span>
           <span className="site-marquee-text" aria-hidden>
-            NOTICE: Razorpay payments are currently in test mode — online
-            payments are not accepted. Only WhatsApp orders will be
-            considered. Please place orders via WhatsApp.
+            NOTICE: Free Delivery on all orders above ₹500.
+          </span>
+            <span className="site-marquee-text" aria-hidden>
+            NOTICE: Free Delivery on all orders above ₹500.
           </span>
         </div>
       </div>
