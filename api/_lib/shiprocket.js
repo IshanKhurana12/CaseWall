@@ -194,6 +194,77 @@ export async function assignShiprocketAwb({ shipmentId, courierId, orderId }) {
   };
 }
 
+export async function resolveShiprocketCourier({ pickupPincode, deliveryPincode, weight = 0.5, cod = 0, preferredCourierId } = {}) {
+  const pickup = String(pickupPincode || process.env.SHIPROCKET_PICKUP_PINCODE || "110001").trim();
+  const delivery = String(deliveryPincode || "").trim();
+  if (!delivery) {
+    throw new Error("Missing delivery pincode for Shiprocket courier resolution.");
+  }
+
+  const serviceability = await getShiprocketServiceability({ pickupPincode: pickup, deliveryPincode: delivery, weight, cod });
+  const list = Array.isArray(serviceability) ? serviceability : Array.isArray(serviceability?.data) ? serviceability.data : Array.isArray(serviceability?.result) ? serviceability.result : [];
+
+  const option = list.find((item) => {
+    const candidateId = Number(item?.courier_company_id ?? item?.courier_companyId ?? item?.courier_id ?? item?.courierId);
+    return Number.isFinite(candidateId) && (preferredCourierId == null || Number(preferredCourierId) === candidateId);
+  }) || list[0];
+
+  if (!option) {
+    throw new Error(`No Shiprocket courier available for pickup ${pickup} to delivery ${delivery}.`);
+  }
+
+  const courierId = Number(option?.courier_company_id ?? option?.courier_companyId ?? option?.courier_id ?? option?.courierId);
+  if (!Number.isFinite(courierId)) {
+    throw new Error(`Serviceability result for route ${pickup} → ${delivery} did not include a valid courier_company_id.`);
+  }
+
+  return {
+    courierId,
+    courierName: option?.courier_name || option?.courierName || null,
+    raw: option,
+  };
+}
+
+export async function scheduleShiprocketPickup({ shipmentId, orderId, order, pickupLocation }) {
+  const token = await getShiprocketToken();
+  const shipment = String(shipmentId || "").trim();
+  if (!shipment) {
+    throw new Error("Missing Shiprocket shipment id before scheduling pickup.");
+  }
+
+  const address = order?.address || {};
+  const contact = order?.contact || {};
+  const pickupDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const defaultPickup = String(process.env.SHIPROCKET_PICKUP_LOCATION || "default").trim();
+
+  const payload = {
+    shipment_id: shipment,
+    pickup_location: String(pickupLocation || defaultPickup || "default").slice(0, 80),
+    city: String(address.city || "Delhi").slice(0, 80),
+    state: String(address.state || "Delhi").slice(0, 80),
+    pin_code: String(address.pincode || process.env.SHIPROCKET_PICKUP_PINCODE || "110001").slice(0, 20),
+    phone: String(contact.phone || "9999999999").slice(0, 20),
+    email: String(contact.email || "support@example.com").slice(0, 120),
+    address: [address.line1, address.line2].filter(Boolean).join(", ") || "Pickup address",
+    comment: `Pickup for order ${orderId}`,
+    pickup_date: pickupDate,
+    pickup_time: "13:00",
+  };
+
+  const response = await shiprocketFetch("/v1/external/courier/generate/pickup", {
+    method: "POST",
+    body: payload,
+    token,
+  });
+
+  const data = response?.data ?? response?.result ?? response ?? {};
+  return {
+    pickupStatus: findFirstNestedValue(data, ["status", "pickup_status", "shipment_status"]) || "scheduled",
+    pickupId: findFirstNestedValue(data, ["pickup_id", "id", "pickupId"]) || null,
+    raw: data,
+  };
+}
+
 export async function createShiprocketOrder(order, orderId) {
   const token = await getShiprocketToken();
 
@@ -258,30 +329,55 @@ export async function createShiprocketOrder(order, orderId) {
   const shipmentId = findFirstNestedValue(data, ["shipment_id", "shipmentId", "id"]) || null;
   const result = normalizeTrackingResult(data);
 
-  if (!shipmentId && process.env.SHIPROCKET_COURIER_ID) {
-    try {
-      const assigned = await assignShiprocketAwb({
-        shipmentId: String(findFirstNestedValue(data, ["order_id", "orderId"]) || orderId),
-        courierId: process.env.SHIPROCKET_COURIER_ID,
-        orderId,
-      });
-      if (assigned.awb) {
-        result.trackingId = assigned.awb;
-        result.waybill = assigned.awb;
-        result.trackingUrl = result.trackingUrl || `https://shiprocket.co/tracking/${assigned.awb}`;
-      }
-    } catch (awberr) {
-      console.warn("Shiprocket AWB assignment skipped for order", orderId, awberr.message || awberr);
-    }
+  if (!shipmentId) {
+    throw new Error(`Shiprocket order creation did not return a shipment id. Response: ${JSON.stringify(data)}`);
   }
 
-  if (!shipmentId && !result.waybill) {
-    throw new Error(`Shiprocket create-order response did not include a valid shipment/waybill. Response: ${JSON.stringify(data)}`);
+  const pickupPincode = String(order?.address?.pincode || process.env.SHIPROCKET_PICKUP_PINCODE || "110001").trim();
+  const deliveryPincode = String(order?.address?.pincode || "").trim();
+  if (!deliveryPincode) {
+    throw new Error(`Order ${orderId} is missing a valid delivery pincode for Shiprocket courier selection.`);
   }
+
+  const route = await resolveShiprocketCourier({
+    pickupPincode,
+    deliveryPincode,
+    weight: Number(process.env.SHIPROCKET_PACKET_WEIGHT || 0.5),
+    cod: 0,
+  });
+
+  try {
+    const assigned = await assignShiprocketAwb({
+      shipmentId,
+      courierId: route.courierId,
+      orderId,
+    });
+    if (assigned.awb) {
+      result.trackingId = assigned.awb;
+      result.waybill = assigned.awb;
+      result.trackingUrl = result.trackingUrl || `https://shiprocket.co/tracking/${assigned.awb}`;
+    }
+  } catch (awberr) {
+    throw new Error(`Shiprocket AWB assignment failed for order ${orderId}: ${awberr.message || awberr}`);
+  }
+
+  if (!result.waybill) {
+    throw new Error(`Shiprocket did not return a valid AWB/tracking value for order ${orderId}. Response: ${JSON.stringify(data)}`);
+  }
+
+  const pickupLocation = String(process.env.SHIPROCKET_PICKUP_LOCATION || "default").trim();
+  const pickup = await scheduleShiprocketPickup({
+    shipmentId,
+    orderId,
+    order,
+    pickupLocation,
+  });
 
   return {
     ...result,
     shipmentId,
+    courierId: route.courierId,
+    pickup,
     raw: data,
   };
 }
