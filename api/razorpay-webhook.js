@@ -89,6 +89,10 @@ export default async function handler(req, res) {
                 try {
                   const shipment = await createShiprocketOrder(order, orderId);
                   const waybill = shipment.waybill || shipment.trackingId || shipment.shipmentId || null;
+                  if (!waybill && !shipment.shipmentId) {
+                    throw new Error("Shiprocket did not return a valid shipment/waybill for this order.");
+                  }
+
                   await orderRef.update({
                     shiprocket: {
                       waybill,
@@ -105,7 +109,10 @@ export default async function handler(req, res) {
                   });
                 } catch (shipErr) {
                   console.error("Shiprocket shipment creation failed (webhook) for order", orderId, shipErr);
-                  await orderRef.update({ shiprocketError: String(shipErr.message || shipErr) });
+                  await orderRef.update({
+                    shiprocketError: String(shipErr.message || shipErr),
+                    status: "paid",
+                  });
                 }
               }
             }

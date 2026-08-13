@@ -111,14 +111,37 @@ export async function getShiprocketToken() {
   return token;
 }
 
+function findFirstNestedValue(obj, keys) {
+  if (!obj || typeof obj !== "object") return null;
+
+  for (const key of keys) {
+    if (obj[key] !== undefined && obj[key] !== null && obj[key] !== "") return obj[key];
+  }
+
+  for (const value of Object.values(obj)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const match = findFirstNestedValue(item, keys);
+        if (match !== null) return match;
+      }
+    } else if (value && typeof value === "object") {
+      const match = findFirstNestedValue(value, keys);
+      if (match !== null) return match;
+    }
+  }
+
+  return null;
+}
+
 function normalizeTrackingResult(payload) {
   const data = payload?.data ?? payload?.result ?? payload ?? {};
-  const trackingId = data?.tracking_id || data?.awb_code || data?.shipment_id || data?.trackingId || data?.waybill || data?.trackingID || null;
-  const trackingUrl = data?.tracking_url || data?.trackingUrl || (trackingId ? `https://shiprocket.co/tracking/${trackingId}` : null);
-  const status = data?.status || data?.shipment_status || data?.current_status || null;
+  const trackingId = findFirstNestedValue(data, ["tracking_id", "awb_code", "awb", "trackingId", "waybill", "trackingID"]) || null;
+  const shipmentId = findFirstNestedValue(data, ["shipment_id", "shipmentId"]) || null;
+  const trackingUrl = findFirstNestedValue(data, ["tracking_url", "trackingUrl"]) || (trackingId ? `https://shiprocket.co/tracking/${trackingId}` : null);
+  const status = findFirstNestedValue(data, ["status", "shipment_status", "current_status"]) || null;
   return {
-    trackingId,
-    waybill: trackingId,
+    trackingId: trackingId || shipmentId || null,
+    waybill: trackingId || shipmentId || null,
     trackingUrl,
     status,
     raw: payload,
@@ -232,13 +255,13 @@ export async function createShiprocketOrder(order, orderId) {
   });
 
   const data = response?.data ?? response?.result ?? response ?? {};
-  const shipmentId = data?.shipment_id || data?.id || data?.shipmentId || data?.order_id || null;
+  const shipmentId = findFirstNestedValue(data, ["shipment_id", "shipmentId", "id"]) || null;
   const result = normalizeTrackingResult(data);
 
-  if (shipmentId && process.env.SHIPROCKET_COURIER_ID) {
+  if (!shipmentId && process.env.SHIPROCKET_COURIER_ID) {
     try {
       const assigned = await assignShiprocketAwb({
-        shipmentId,
+        shipmentId: String(findFirstNestedValue(data, ["order_id", "orderId"]) || orderId),
         courierId: process.env.SHIPROCKET_COURIER_ID,
         orderId,
       });
@@ -250,6 +273,10 @@ export async function createShiprocketOrder(order, orderId) {
     } catch (awberr) {
       console.warn("Shiprocket AWB assignment skipped for order", orderId, awberr.message || awberr);
     }
+  }
+
+  if (!shipmentId && !result.waybill) {
+    throw new Error(`Shiprocket create-order response did not include a valid shipment/waybill. Response: ${JSON.stringify(data)}`);
   }
 
   return {
