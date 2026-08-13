@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Product catalog — you manage this from the Firebase console (or your
+    // own admin tooling). The app only ever reads it.
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Jewellery collection used by the DeViR catalog. Allow public reads
+    // from the web client; writes should be done from admin tooling only.
+    match /jewelry/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Orders are created AND updated only by the /api serverless functions
+    // using the Firebase Admin SDK, which authenticates with a service
+    // account and always bypasses these rules entirely. That's what makes
+    // the payment flow safe: nothing running in the browser — not the
+    // Razorpay "success" callback, not the cart, not a tampered request —
+    // can ever set an order's status to "paid" or change its amount.
+    //
+    // Reads are allowed so the order-status page can show live progress.
+    // Firestore document IDs here are random, unguessable auto-IDs, which
+    // is an acceptable level of protection for a small storefront with no
+    // login system. If you add customer accounts later, tighten this to
+    // `allow read: if request.auth.uid == resource.data.uid`.
+    match /orders/{orderId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

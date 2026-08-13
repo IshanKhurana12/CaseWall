@@ -5,9 +5,9 @@ import { STORE_NAME, STORE_TAGLINE } from "../config";
 import ProductGrid from "./ProductGrid";
 import "../App.css";
 import "../jwelleryStyles.css";
-import FAQSection from "../FAQSection";
 import JewelryCollection from "./JewelryCollection";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useCart } from "../context/CartContext";
 export default function CasesPage() {
   const [products, setProducts] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | ready | error | empty
@@ -46,10 +46,13 @@ export default function CasesPage() {
     });
   }, [products, activeModel, search]);
 
+  const navigate = useNavigate();
+  const { count } = useCart();
+
   if (view === "jewelry") {
     return <JewelryCollection onBack={() => setView("cases")} />;
   }
-const navigate = useNavigate();
+
   return (
     <div className="page">
       <header className="hero">
@@ -91,6 +94,12 @@ const navigate = useNavigate();
 >
   DeViR Jewellery →
 </button>
+  <Link to="/cart" className="cart-nav-link" aria-label="View cart">
+    Cart{count > 0 && <span className="cart-nav-count">{count}</span>}
+  </Link>
+  <Link to="/orderstatus" className="cart-nav-link" aria-label="Orders" style={{ marginLeft: 8 }}>
+    Orders
+  </Link>
           </div>
         </div>
 
@@ -129,12 +138,6 @@ const navigate = useNavigate();
 
         {status === "ready" && visible.length > 0 && <ProductGrid products={visible} />}
       </main>
-
-        <div style={{marginBottom:"150px"}}>
-
-        
-      <FAQSection />
-      </div>
       <footer className="site-footer">
         <p>Questions about a cover? Tap "Ask on WhatsApp" on any product.</p>
       </footer>

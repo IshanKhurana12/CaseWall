@@ -12,6 +12,9 @@
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
     "firebase": "^12.17.1",
+    "firebase-admin": "^14.2.0",
+    "razorpay": "^2.9.8",
+    "nodemailer": "^6.9.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^6.30.4"
