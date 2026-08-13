@@ -7,10 +7,19 @@ export default function SiteMarquee() {
             NOTICE: Free Delivery on all orders above ₹500.
           </span>
           <span className="site-marquee-text" aria-hidden>
-            NOTICE: Free Delivery on all orders above ₹500.
+             Free Delivery on all orders above ₹500.
           </span>
             <span className="site-marquee-text" aria-hidden>
-            NOTICE: Free Delivery on all orders above ₹500.
+             Free Delivery on all orders above ₹500.
+          </span>
+           <span className="site-marquee-text" aria-hidden>
+             Free Delivery on all orders above ₹500.
+          </span>
+           <span className="site-marquee-text" aria-hidden>
+            Free Delivery on all orders above ₹500.
+          </span>
+           <span className="site-marquee-text" aria-hidden>
+            Free Delivery on all orders above ₹500.
           </span>
         </div>
       </div>
