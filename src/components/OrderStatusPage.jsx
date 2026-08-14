@@ -71,6 +71,15 @@ export default function OrderStatusPage() {
   const waybill = shiprocket.waybill || shiprocket.trackingId || shiprocket.shipmentId || null;
   const trackingUrl = shiprocket.trackingUrl || (waybill ? `https://shiprocket.co/tracking/${waybill}` : null);
 
+  // Only these two statuses actually mean "payment failed / no order".
+  // Everything else (paid, shipped, delivered, or any status we don't
+  // recognize yet) must NOT be shown as a failure.
+  const isFailedStatus = status === "cancelled" || status === "payment_failed";
+
+  // Statuses where payment succeeded — used to gate the order details,
+  // items, totals, payment info, and tracking sections below.
+  const isPaidOrLater = status === "paid" || status === "shipped" || status === "delivered";
+
   const statusView = {
     created: { icon: "⏳", title: "Payment processing…", sub: "We're waiting for your payment to be confirmed. This page updates automatically — no need to refresh." },
     reserved: { icon: "⏳", title: "Payment pending", sub: "No payment has been captured yet. If your payment was cancelled or failed, no money was deducted." },
@@ -78,7 +87,15 @@ export default function OrderStatusPage() {
     payment_failed: { icon: "⚠️", title: "Payment failed or cancelled", sub: "No money was deducted and no order was confirmed. You can try again from the cart." },
     paid: { icon: "✅", title: "Payment confirmed!", sub: "Your order is confirmed and is being prepared for shipment." },
     shipped: { icon: "📦", title: "Order shipped!", sub: "Your order is on its way." },
-  }[status] || { icon: "⚠️", title: "Payment failed or cancelled", sub: "No money was deducted and no order was confirmed." };
+    delivered: { icon: "🎉", title: "Order delivered!", sub: "Your order has been delivered. We hope you love it!" },
+  }[status] || {
+    // Fallback for any status not explicitly handled above — this used to
+    // incorrectly claim "payment failed", even for legitimate statuses
+    // like "delivered" that just weren't in the map yet.
+    icon: "ℹ️",
+    title: "Order status: " + status,
+    sub: "We're tracking this order. If anything looks wrong, message us on WhatsApp below.",
+  };
 
   return (
     <div className="page">
@@ -108,14 +125,14 @@ export default function OrderStatusPage() {
           </p>
         )}
 
-        {status === "paid" || status === "shipped" ? (
+        {isPaidOrLater ? (
           <p className="order-status-sub" style={{ marginTop: -6 }}>
             Amount: <strong>{formatPrice((order.totalAmountPaise ?? order.amount ?? order.totalAmount) / 100)}</strong>
           </p>
         ) : null}
 
         {/* Items breakdown */}
-        {(status === "paid" || status === "shipped") &&
+        {isPaidOrLater &&
           Array.isArray(order.items) &&
           order.items.length > 0 && (
             <div style={{ marginTop: 16, width: "100%" }}>
@@ -142,7 +159,7 @@ export default function OrderStatusPage() {
           )}
 
         {/* Totals */}
-        {(status === "paid" || status === "shipped") && (
+        {isPaidOrLater && (
           <div style={{ marginTop: 14, width: "100%", display: "flex", justifyContent: "flex-end" }}>
             <div style={{ width: 320, border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -163,7 +180,7 @@ export default function OrderStatusPage() {
         )}
 
         {/* Payment info */}
-        {(status === "paid" || status === "shipped") && (
+        {isPaidOrLater && (
           <div style={{ marginTop: 12, width: "100%" }}>
             <h4 style={{ marginBottom: 8 }}>Payment</h4>
             <div style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
@@ -181,7 +198,7 @@ export default function OrderStatusPage() {
           </div>
         )}
 
-        {(status === "paid" || status === "shipped") && (
+        {isPaidOrLater && (
           <div className="order-status-track">
             <p style={{ margin: "0 0 6px", fontWeight: 600 }}>Remember for delivery day:</p>
             <p style={{ margin: 0, fontSize: 13.5, color: "var(--slate)", lineHeight: 1.6 }}>
