@@ -73,10 +73,12 @@ export default function OrderStatusPage() {
 
   const statusView = {
     created: { icon: "⏳", title: "Payment processing…", sub: "We're waiting for your payment to be confirmed. This page updates automatically — no need to refresh." },
+    reserved: { icon: "⏳", title: "Payment pending", sub: "No payment has been captured yet. If your payment was cancelled or failed, no money was deducted." },
+    cancelled: { icon: "⚠️", title: "Payment failed or cancelled", sub: "No money was deducted and no order was confirmed. You can try again from the cart." },
+    payment_failed: { icon: "⚠️", title: "Payment failed or cancelled", sub: "No money was deducted and no order was confirmed. You can try again from the cart." },
     paid: { icon: "✅", title: "Payment confirmed!", sub: "Your order is confirmed and is being prepared for shipment." },
-    payment_failed: { icon: "⚠️", title: "Payment didn't go through", sub: "Your payment wasn't completed. You can go back to your cart and try again." },
     shipped: { icon: "📦", title: "Order shipped!", sub: "Your order is on its way." },
-  }[status] || { icon: "⏳", title: "Order received", sub: "We're processing your order." };
+  }[status] || { icon: "⚠️", title: "Payment failed or cancelled", sub: "No money was deducted and no order was confirmed." };
 
   return (
     <div className="page">
@@ -106,74 +108,80 @@ export default function OrderStatusPage() {
           </p>
         )}
 
-        {order.amount !== undefined && (
+        {status === "paid" || status === "shipped" ? (
           <p className="order-status-sub" style={{ marginTop: -6 }}>
             Amount: <strong>{formatPrice((order.totalAmountPaise ?? order.amount ?? order.totalAmount) / 100)}</strong>
           </p>
-        )}
+        ) : null}
 
         {/* Items breakdown */}
-        {Array.isArray(order.items) && order.items.length > 0 && (
-          <div style={{ marginTop: 16, width: "100%" }}>
-            <h3 style={{ marginBottom: 8 }}>Items</h3>
-            <div style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
-              {order.items.map((it, i) => {
-                const unit = (it.price ?? it.unitPrice ?? it.unit_amount ?? it.amount) || 0;
-                const qty = it.qty || 1;
-                return (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: i < order.items.length - 1 ? "1px solid var(--line)" : "none" }}>
-                    <div>
-                      <div style={{ fontWeight: 700 }}>{it.name || it.title || it.productName}</div>
-                      <div style={{ color: "var(--slate)", fontSize: 13 }}>{it.variant || ''} {it.size ? `· ${it.size}` : ''}</div>
+        {(status === "paid" || status === "shipped") &&
+          Array.isArray(order.items) &&
+          order.items.length > 0 && (
+            <div style={{ marginTop: 16, width: "100%" }}>
+              <h3 style={{ marginBottom: 8 }}>Items</h3>
+              <div style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
+                {order.items.map((it, i) => {
+                  const unit = (it.price ?? it.unitPrice ?? it.unit_amount ?? it.amount) || 0;
+                  const qty = it.qty || 1;
+                  return (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: i < order.items.length - 1 ? "1px solid var(--line)" : "none" }}>
+                      <div>
+                        <div style={{ fontWeight: 700 }}>{it.name || it.title || it.productName}</div>
+                        <div style={{ color: "var(--slate)", fontSize: 13 }}>{it.variant || ""} {it.size ? `· ${it.size}` : ""}</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div>{qty} × {formatPrice(unit / 100)}</div>
+                        <div style={{ fontWeight: 700 }}>{formatPrice((qty * unit) / 100)}</div>
+                      </div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div>{qty} × {formatPrice(unit / 100)}</div>
-                      <div style={{ fontWeight: 700 }}>{formatPrice((qty * unit) / 100)}</div>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        {/* Totals */}
+        {(status === "paid" || status === "shipped") && (
+          <div style={{ marginTop: 14, width: "100%", display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ width: 320, border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div style={{ color: "var(--slate)" }}>Items</div>
+                <div>{formatPrice((order.itemsAmountPaise ?? order.itemsAmount ?? 0) / 100)}</div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+                <div style={{ color: "var(--slate)" }}>Shipping</div>
+                <div>{formatPrice((order.shippingPaise ?? order.shippingAmount ?? 0) / 100)}</div>
+              </div>
+              <hr style={{ margin: "10px 0" }} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
+                <div>Total</div>
+                <div>{formatPrice((order.totalAmountPaise ?? order.amount ?? order.totalAmount ?? 0) / 100)}</div>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Totals */}
-        <div style={{ marginTop: 14, width: "100%", display: "flex", justifyContent: "flex-end" }}>
-          <div style={{ width: 320, border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <div style={{ color: "var(--slate)" }}>Items</div>
-              <div>{formatPrice((order.itemsAmountPaise ?? order.itemsAmount ?? 0) / 100)}</div>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-              <div style={{ color: "var(--slate)" }}>Shipping</div>
-              <div>{formatPrice((order.shippingPaise ?? order.shippingAmount ?? 0) / 100)}</div>
-            </div>
-            <hr style={{ margin: "10px 0" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
-              <div>Total</div>
-              <div>{formatPrice((order.totalAmountPaise ?? order.amount ?? order.totalAmount ?? 0) / 100)}</div>
-            </div>
-          </div>
-        </div>
-
         {/* Payment info */}
-        <div style={{ marginTop: 12, width: "100%" }}>
-          <h4 style={{ marginBottom: 8 }}>Payment</h4>
-          <div style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <div style={{ color: "var(--slate)" }}>Method</div>
-              <div>{order.paymentMethod || order.method || "—"}</div>
-            </div>
-            {order.razorpay?.payment_id || order.paymentId || order.razorpay_payment_id ? (
-              <div style={{ marginTop: 8 }}>
-                <div style={{ color: "var(--slate)" }}>Razorpay payment ID</div>
-                <div style={{ fontFamily: "monospace", marginTop: 4 }}>{order.razorpay?.payment_id || order.paymentId || order.razorpay_payment_id}</div>
+        {(status === "paid" || status === "shipped") && (
+          <div style={{ marginTop: 12, width: "100%" }}>
+            <h4 style={{ marginBottom: 8 }}>Payment</h4>
+            <div style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div style={{ color: "var(--slate)" }}>Method</div>
+                <div>{order.paymentMethod || order.method || "—"}</div>
               </div>
-            ) : null}
+              {order.razorpay?.payment_id || order.paymentId || order.razorpay_payment_id ? (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ color: "var(--slate)" }}>Razorpay payment ID</div>
+                  <div style={{ fontFamily: "monospace", marginTop: 4 }}>{order.razorpay?.payment_id || order.paymentId || order.razorpay_payment_id}</div>
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
+        )}
 
-        {status === "paid" && (
+        {(status === "paid" || status === "shipped") && (
           <div className="order-status-track">
             <p style={{ margin: "0 0 6px", fontWeight: 600 }}>Remember for delivery day:</p>
             <p style={{ margin: 0, fontSize: 13.5, color: "var(--slate)", lineHeight: 1.6 }}>

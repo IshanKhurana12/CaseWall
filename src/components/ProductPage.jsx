@@ -241,12 +241,12 @@ export default function ProductPage() {
 
             <div className="pp-policy-notice">
               <span className="pp-policy-badge">Non-refundable</span>
-              <p>{RETURN_POLICY_SHORT} <Link to="/#faq">Read the full policy →</Link></p>
+              <p>{RETURN_POLICY_SHORT} <a href="#faq">Read the full policy →</a></p>
             </div>
         
           </div>
         </div>
-            <FAQSection />
+            <FAQSection  />
       </div>
     </div>
   );
