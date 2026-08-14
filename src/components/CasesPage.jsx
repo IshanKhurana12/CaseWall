@@ -14,6 +14,7 @@ export default function CasesPage() {
   const [activeModel, setActiveModel] = useState("All");
   const [search, setSearch] = useState("");
   const [view, setView] = useState("cases"); // "cases" | "jewelry"
+  const [jewelleryOnly, setJewelleryOnly] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -42,9 +43,10 @@ export default function CasesPage() {
       const matchesSearch =
         !search.trim() ||
         `${p.name ?? ""} ${p.model ?? ""}`.toLowerCase().includes(search.trim().toLowerCase());
-      return matchesModel && matchesSearch;
+      const matchesJewellery = !jewelleryOnly || p.isJewellery === true;
+      return matchesModel && matchesSearch && matchesJewellery;
     });
-  }, [products, activeModel, search]);
+  }, [products, activeModel, search, jewelleryOnly]);
 
   const navigate = useNavigate();
   const { count } = useCart();
@@ -78,6 +80,14 @@ export default function CasesPage() {
                 {m}
               </button>
             ))}
+            <button
+              role="tab"
+              aria-selected={jewelleryOnly}
+              className={"chip" + (jewelleryOnly ? " chip-active" : "")}
+              onClick={() => setJewelleryOnly((j) => !j)}
+            >
+              {jewelleryOnly ? "← Cases" : "Jewellery"}
+            </button>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
@@ -89,16 +99,16 @@ export default function CasesPage() {
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search products"
             />
-         <button
+         {/* <button
   className="jw-nav-link"
   onClick={() => navigate("/devir")}
 >
   DeViR Jewellery →
-</button>
+</button> */}
   <Link to="/cart" className="cart-nav-link" aria-label="View cart">
     Cart{count > 0 && <span className="cart-nav-count">{count}</span>}
   </Link>
-  <Link to="/orderstatus" className="cart-nav-link" aria-label="Orders" style={{ marginLeft: 8 }}>
+  <Link to="/orderstatus" className="cart-nav-link" aria-label="Orders" >
     Orders
   </Link>
           </div>

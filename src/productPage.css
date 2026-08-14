@@ -262,3 +262,285 @@
   color: var(--grip);
   font-weight: 600;
 }
+
+/* ==========================================================================
+   Reviews section — uses the same design tokens as the rest of the page:
+   --font-display, --font-mono, --font-body, --ink, --slate, --paper,
+   --line, --signal, --grip
+   ========================================================================== */
+
+.pp-reviews {
+  margin-top: 56px;
+  padding-top: 32px;
+  border-top: 2px solid var(--ink);
+}
+
+.pp-reviews-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.pp-reviews-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(20px, 2.4vw, 26px);
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.15;
+}
+
+.pp-reviews-count {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--slate);
+}
+
+.pp-write-review-btn {
+  white-space: nowrap;
+  flex: initial;
+  min-width: unset;
+  padding: 10px 22px;
+}
+
+/* ---- Review list ---- */
+
+.pp-review-list {
+  list-style: none;
+  margin: 0 0 28px;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.pp-review {
+  padding: 18px 20px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pp-review-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+/* Circular initial badge — reads the letter from the data-initial
+   attribute set in JSX, so no extra markup is needed. */
+.pp-review-author::before {
+  content: attr(data-initial);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--signal);
+  color: var(--paper);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.pp-review-text {
+  font-family: var(--font-body);
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.pp-review-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pp-review-thumb-btn {
+  padding: 0;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  cursor: pointer;
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: border-color 0.12s ease, transform 0.1s ease;
+}
+
+.pp-review-thumb-btn:hover {
+  border-color: var(--ink);
+  transform: scale(1.03);
+}
+
+.pp-review-thumb-btn:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: -2px;
+}
+
+.pp-review-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pp-reviews .muted {
+  font-family: var(--font-body);
+  color: var(--slate);
+  font-size: 14px;
+}
+
+/* Lightbox for viewing a review photo full-size */
+.pp-review-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+  cursor: zoom-out;
+}
+
+.pp-review-lightbox img {
+  max-width: min(90vw, 700px);
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 18px;
+  border: 2px solid var(--ink);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* ---- Write a review (WhatsApp submission form) ---- */
+
+.pp-review-thankyou {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 0 0 20px;
+}
+
+.pp-review-form {
+  border: 1.5px dashed var(--line);
+  border-radius: 14px;
+  padding: 18px 18px 20px;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 28px;
+  max-width: 480px;
+}
+
+.pp-review-form-note {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--slate);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.pp-review-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--slate);
+}
+
+.pp-review-field input,
+.pp-review-field textarea {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  padding: 10px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  resize: vertical;
+  transition: border-color 0.12s ease;
+}
+
+.pp-review-field input::placeholder,
+.pp-review-field textarea::placeholder {
+  color: var(--slate);
+}
+
+.pp-review-field input:focus,
+.pp-review-field textarea:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+
+.pp-review-form-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pp-review-form-actions .pp-btn {
+  flex: initial;
+  min-width: 140px;
+}
+
+@media (max-width: 480px) {
+  .pp-reviews {
+    margin-top: 40px;
+    padding-top: 24px;
+  }
+
+  .pp-reviews-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pp-write-review-btn {
+    width: 100%;
+  }
+
+  .pp-review {
+    padding: 14px 16px;
+  }
+
+  .pp-review-thumb-btn {
+    width: 48px;
+    height: 48px;
+  }
+
+  .pp-review-form-actions {
+    flex-direction: column;
+  }
+
+  .pp-review-form-actions .pp-btn {
+    width: 100%;
+  }
+}
