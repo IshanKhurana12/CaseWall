@@ -193,6 +193,67 @@ export default function ProductCard({ product }) {
     setActiveIndex((i) => (i + 1) % images.length);
   }
 
+  // --- Swipe support (mobile) -------------------------------------------
+  // Tracks the horizontal touch position across touchstart -> touchmove ->
+  // touchend so a left/right swipe on the product image can move to the
+  // next/previous photo, same as tapping the prev/next buttons.
+  const [touchStartX, setTouchStartX] = useState(null);
+  const [touchStartY, setTouchStartY] = useState(null);
+  const [touchDeltaX, setTouchDeltaX] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+
+  const SWIPE_THRESHOLD = 40; // min horizontal px to count as a swipe
+  const DIRECTION_LOCK = 8; // px of movement before we decide h vs v scroll
+
+  function handleTouchStart(e) {
+    const t = e.targetTouches[0];
+    setTouchStartX(t.clientX);
+    setTouchStartY(t.clientY);
+    setTouchDeltaX(0);
+    setIsSwiping(false);
+  }
+
+  function handleTouchMove(e) {
+    if (touchStartX === null || touchStartY === null) return;
+    const t = e.targetTouches[0];
+    const dx = t.clientX - touchStartX;
+    const dy = t.clientY - touchStartY;
+
+    // Decide once whether this gesture is a horizontal swipe or a vertical
+    // page scroll, based on whichever axis moved further first.
+    if (!isSwiping && Math.abs(dx) < DIRECTION_LOCK && Math.abs(dy) < DIRECTION_LOCK) {
+      return;
+    }
+    if (!isSwiping) {
+      if (Math.abs(dx) > Math.abs(dy)) {
+        setIsSwiping(true);
+      } else {
+        // Vertical scroll wins; stop tracking this gesture as a swipe.
+        setTouchStartX(null);
+        setTouchStartY(null);
+        return;
+      }
+    }
+
+    // Prevent the page from scrolling while the user drags the image.
+    e.preventDefault();
+    setTouchDeltaX(dx);
+  }
+
+  function handleTouchEnd() {
+    if (isSwiping && Math.abs(touchDeltaX) > SWIPE_THRESHOLD) {
+      if (touchDeltaX < 0) {
+        setActiveIndex((i) => (i + 1) % images.length);
+      } else {
+        setActiveIndex((i) => (i - 1 + images.length) % images.length);
+      }
+    }
+    setTouchStartX(null);
+    setTouchStartY(null);
+    setTouchDeltaX(0);
+    setIsSwiping(false);
+  }
+
   return (
     <article className={"card" + (outOfStock ? " card-out" : "")}>
       <div className="card-peg" aria-hidden="true">
@@ -204,16 +265,28 @@ export default function ProductCard({ product }) {
         role="link"
         tabIndex={0}
         aria-label={`View ${product.name ?? "this cover"}`}
-        onClick={() => navigate(`/product/${product.id}`)}
+        onClick={(e) => {
+          // Skip navigation if the tap was actually a swipe drag.
+          if (isSwiping) {
+            e.preventDefault();
+            return;
+          }
+          navigate(`/product/${product.id}`);
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter") navigate(`/product/${product.id}`);
         }}
+        onTouchStart={hasMultiple ? handleTouchStart : undefined}
+        onTouchMove={hasMultiple ? handleTouchMove : undefined}
+        onTouchEnd={hasMultiple ? handleTouchEnd : undefined}
+        style={{ touchAction: hasMultiple ? "pan-y" : undefined }}
       >
         {images.length > 0 ? (
           <img
             src={images[activeIndex]}
             alt={`${product.name ?? "Phone cover"}${hasMultiple ? ` — photo ${activeIndex + 1} of ${images.length}` : ""}`}
             loading="lazy"
+            draggable={false}
           />
         ) : (
           <div className="card-media-fallback">No image</div>
