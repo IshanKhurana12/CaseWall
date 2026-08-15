@@ -139,7 +139,7 @@ export default function OrderStatusPage() {
               <h3 style={{ marginBottom: 8 }}>Items</h3>
               <div style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
                 {order.items.map((it, i) => {
-                  const unit = (it.price ?? it.unitPrice ?? it.unit_amount ?? it.amount) || 0;
+                  const unit = order.itemsAmount;
                   const qty = it.qty || 1;
                   return (
                     <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: i < order.items.length - 1 ? "1px solid var(--line)" : "none" }}>
@@ -164,7 +164,7 @@ export default function OrderStatusPage() {
             <div style={{ width: 320, border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <div style={{ color: "var(--slate)" }}>Items</div>
-                <div>{formatPrice((order.itemsAmountPaise ?? order.itemsAmount ?? 0) / 100)}</div>
+                <div>{formatPrice((order.itemsAmountPaise ?? order.amount ?? 0) / 100)}</div>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
                 <div style={{ color: "var(--slate)" }}>Shipping</div>
@@ -186,12 +186,12 @@ export default function OrderStatusPage() {
             <div style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <div style={{ color: "var(--slate)" }}>Method</div>
-                <div>{order.paymentMethod || order.method || "—"}</div>
+                <div>{order.paymentMethod || order.method || "Razorpay"}</div>
               </div>
-              {order.razorpay?.payment_id || order.paymentId || order.razorpay_payment_id ? (
+              {order.razorpay?.payment_id || order.paymentId || order.razorpayPaymentId ? (
                 <div style={{ marginTop: 8 }}>
-                  <div style={{ color: "var(--slate)" }}>Razorpay payment ID</div>
-                  <div style={{ fontFamily: "monospace", marginTop: 4 }}>{order.razorpay?.payment_id || order.paymentId || order.razorpay_payment_id}</div>
+                  <div style={{ color: "var(--slate)" }}>Razorpay payment ID </div>
+                  <div style={{ fontFamily: "monospace", marginTop: 4 }}>{order.razorpay?.payment_id || order.paymentId || order.razorpayPaymentId}</div>
                 </div>
               ) : null}
             </div>
