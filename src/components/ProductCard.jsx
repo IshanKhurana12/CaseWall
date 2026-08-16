@@ -328,7 +328,7 @@ export default function ProductCard({ product }) {
           <h3 className="card-name">{product.name ?? "Untitled cover"}</h3>
         </Link>
         <StarRating rating={displayRating} reviewCount={displayReviewCount} />
-        {product.description && <p className="card-desc">{product.description}</p>}
+      
 
         <div className="card-footer">
           <div className="card-price-group">

@@ -8,6 +8,7 @@ import "../jwelleryStyles.css";
 import JewelryCollection from "./JewelryCollection";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import Footer from "./Footer";
 export default function CasesPage() {
   const [products, setProducts] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | ready | error | empty
@@ -149,7 +150,7 @@ export default function CasesPage() {
 
         {status === "ready" && visible.length > 0 && <ProductGrid products={visible} />}
       </main>
-      <footer className="site-footer">
+      {/* <footer className="site-footer">
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
           <p>Questions about a cover? Tap "Ask on WhatsApp" on any product.</p>
           <a
@@ -166,7 +167,9 @@ export default function CasesPage() {
             Need help? Ask on WhatsApp
           </a>
         </div>
-      </footer>
+      </footer> */}
+
+      <Footer />
     </div>
   );
 }

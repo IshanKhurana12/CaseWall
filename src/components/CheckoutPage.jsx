@@ -240,7 +240,10 @@ export default function CheckoutPage() {
               onChange={(e) => setAgreed(e.target.checked)}
             />
             <label htmlFor="agree">
-              I understand this order is <strong>non-refundable</strong>. {RETURN_POLICY_SHORT}{" "}
+             
+              <span className="pp-policy-badge">Read the policy for return and refunds before placing the order</span>
+              <p> <a href="/returnPolicy">Read the full policy →</a></p>
+            
               {/* <a href="/#faq" target="_blank" rel="noreferrer">Read the full policy →</a> */}
 
                 {/* <a className="wa-button wa-button-secondary"

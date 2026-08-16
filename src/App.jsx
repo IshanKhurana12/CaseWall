@@ -11,6 +11,7 @@ import { CartProvider } from "./context/CartContext";
 import { Analytics } from "@vercel/analytics/react";
 import SiteMarquee from "./components/SiteMarquee";
 import { CLEANUP_TRIGGER_INTERVAL_MINUTES } from "./config";
+import ReturnPolicy from "./components/Returnpolicy";
 
 export default function App() {
   React.useEffect(() => {
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/orderstatus" element={<OrderStatusLookup />} />
           <Route path="/order/:orderId" element={<OrderStatusPage />} />
+          <Route path="/returnPolicy" element={<ReturnPolicy />} /> 
         </Routes>
         <Analytics />
       </BrowserRouter>

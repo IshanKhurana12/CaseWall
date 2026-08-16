@@ -88,6 +88,7 @@ export default function OrderStatusPage() {
     paid: { icon: "✅", title: "Payment confirmed!", sub: "Your order is confirmed and is being prepared for shipment." },
     shipped: { icon: "📦", title: "Order shipped!", sub: "Your order is on its way." },
     delivered: { icon: "🎉", title: "Order delivered!", sub: "Your order has been delivered. We hope you love it!" },
+    storeCredit: { icon: "💰", title: "Store credit issued", sub: "Your order was taken back and has passed the return/exchange process, you can buy any thing in the store for your order amount within 1 year. To use this credit message us on whatsapp on= +919990111311 with your orderId or phone number || email used while creating the prev order Thankyou." },
   }[status] || {
     // Fallback for any status not explicitly handled above — this used to
     // incorrectly claim "payment failed", even for legitimate statuses
