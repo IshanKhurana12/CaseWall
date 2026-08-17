@@ -203,9 +203,9 @@ export default function OrderStatusPage() {
           <div className="order-status-track">
             <p style={{ margin: "0 0 6px", fontWeight: 600 }}>Remember for delivery day:</p>
             <p style={{ margin: 0, fontSize: 13.5, color: "var(--slate)", lineHeight: 1.6 }}>
-              This order is non-refundable — only damaged items are eligible for a free
+              Read the full refunds and return policy — only damaged items are eligible for a free
               replacement, and only if you record an unedited unboxing video showing the
-              package label and the damage. See the FAQ for the full policy.
+              package label and the damage. Click on this link to see full policy. <a href="/returnPolicy" >return policy </a>
             </p>
             {trackingUrl ? (
               <p style={{ marginTop: 10 }}>

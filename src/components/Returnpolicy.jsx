@@ -88,8 +88,8 @@ export default function ReturnPolicy() {
         <section className="policy-section">
           <h2>Received a damaged or wrong product?</h2>
           <p>
-            Share an unboxing video or photos with us within{" "}
-            <strong>24 hours of delivery</strong> and we'll send a free
+            Share an unboxing video (unedited raw video) within{" "}
+            <strong>24 hours of delivery</strong> we will check it if the mistake is ours or its damaged in transit then we'll send a free
             replacement — no processing fee applies in this case.
           </p>
         </section>

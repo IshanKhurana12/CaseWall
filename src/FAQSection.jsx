@@ -3,11 +3,11 @@ import { useState } from "react";
 const FAQS = [
   {
     q: "How do I pay for my order?",
-    a: "Payment is made through UPI. Once you confirm your order on WhatsApp, I'll send you a QR code — scan it to complete the payment.",
+    a: "Payment is made through razorpay, you can pay using upi netbanking or by card. Once you pay you will recive a mail with a order id ,you can use that order id,phone or email in order status to know your order status",
   },
   {
     q: "What happens after I pay?",
-    a: "As soon as the payment is confirmed, I set up delivery within 24 hours.",
+    a: "As soon as the payment is confirmed, We set up delivery within 24-48 hours.",
   },
   {
     q: "Is delivery free?",
@@ -15,8 +15,12 @@ const FAQS = [
   },
   {
     q: "What's your refund and return policy?",
-    a: "All orders are non-refundable — we don't offer cancellations or money-back refunds once an order is placed. The only exception is if your item arrives damaged: in that case we offer a free replacement (not a refund). To be eligible, you must record a single continuous, unedited unboxing video starting before you open the sealed package, clearly showing the shipping label and the damage as you open it. Replacement claims without this video can't be accepted. Message us the video on WhatsApp within 24 hours of delivery and we'll arrange the replacement.",
+    a: "Refer to the return & refund policy link below",
   },
+  {
+    q:"How I can track the orders?",
+    a:"You can track your order by using the order id,phone or email in the order status page and once the shipment is made from our end you will recive mail and whatsapp update or you can check the status of the order with a tracking link.",
+  }
 ];
 
 function FAQItem({ item, isOpen, onToggle }) {
