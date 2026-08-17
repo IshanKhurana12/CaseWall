@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { RAZORPAY_KEY_ID, RETURN_POLICY_SHORT, STORE_NAME, SHIPPING_RATE_RUPEES, SHIPPING_FREE_THRESHOLD_RUPEES } from "../config";
@@ -35,6 +35,18 @@ export default function CheckoutPage() {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Warn the user if they try to refresh/close the tab while a payment is in flight
+  useEffect(() => {
+    function handleBeforeUnload(e) {
+      if (loading) {
+        e.preventDefault();
+        e.returnValue = ""; // required for Chrome to show the confirmation dialog
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [loading]);
 
   function update(field) {
     return (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -129,6 +141,8 @@ export default function CheckoutPage() {
             console.error(err);
             setError("Payment was received but we couldn't confirm it automatically. Don't worry — message us on WhatsApp with your order id and we'll confirm manually.");
             navigate(`/order/${orderId}`);
+          } finally {
+            setLoading(false);
           }
         },
         modal: {
@@ -268,6 +282,18 @@ export default function CheckoutPage() {
           </button>
         </form>
       </div>
+
+      {loading && (
+        <div className="payment-lock-overlay" role="alertdialog" aria-live="assertive">
+          <div className="payment-lock-box">
+            <div className="payment-lock-spinner" />
+            <p className="payment-lock-title">Processing your payment…</p>
+            <p className="payment-lock-sub">
+              Please don't close, refresh, or go back while we confirm your payment with Razorpay.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

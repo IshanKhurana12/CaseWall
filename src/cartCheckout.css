@@ -238,3 +238,63 @@
   text-align: left;
   margin-top: 20px;
 }
+
+/* ---------- Payment lock overlay (shown while Razorpay payment is processing) ---------- */
+
+.payment-lock-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.payment-lock-box {
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+  padding: 28px 32px;
+  border-radius: 16px;
+  max-width: 320px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.payment-lock-spinner {
+  width: 32px;
+  height: 32px;
+  margin: 0 auto 16px;
+  border: 3px solid var(--line);
+  border-top-color: var(--signal);
+  border-radius: 50%;
+  animation: payment-spin 0.8s linear infinite;
+}
+
+@keyframes payment-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.payment-lock-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+
+.payment-lock-sub {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--slate);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Dim the back-to-cart link while payment is processing */
+.pp-back-link[aria-disabled="true"] {
+  pointer-events: none;
+  opacity: 0.5;
+  cursor: not-allowed;
+}

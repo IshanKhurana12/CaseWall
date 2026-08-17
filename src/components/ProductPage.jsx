@@ -7,6 +7,7 @@ import { RETURN_POLICY_SHORT, STORE_NAME, WHATSAPP_NUMBER } from "../config";
 import "../productPage.css";
 import FAQSection from "../FAQSection";
 import NotifyModal from "./NotifyModal";
+import Footer from "./Footer";
 
 function formatPrice(value, currency = "INR") {
   if (value === undefined || value === null || value === "") return null;
@@ -485,7 +486,7 @@ export default function ProductPage() {
           </div>
         )}
       </div>
-      
+      <Footer />
     </div>
   );
 }
