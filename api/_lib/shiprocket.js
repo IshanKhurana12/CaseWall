@@ -312,17 +312,15 @@ export async function createShiprocketOrder(order, orderId) {
   // expects plain rupee values, unlike Razorpay which needs paise).
   const shippingAmount = Number(order.shippingAmount ?? order.shippingPaise ?? 0);
   const itemsSubtotal = Number(order.itemsAmount ?? order.amount ?? 0);
-  // Shipping is folded into sub_total (not sent as a separate
-  // shipping_charges line) so the whole order value is taxed as one
-  // product amount on the Shiprocket invoice.
-  const subtotal = itemsSubtotal + shippingAmount;
   const billingAddress = [order.address?.line1, order.address?.line2].filter(Boolean).join(", ");
   const shippingAddress = [order.address?.line1, order.address?.line2].filter(Boolean).join(", ");
 
-  // Build the product line items first, then always append a dedicated
-  // "Shipping Charges" line (even when shippingAmount is 0) so the invoice
-  // never shows a Net Total that's higher than the sum of visible line
-  // items with no explanation for the difference.
+  // order_items should only ever contain things actually sold — Shiprocket's
+  // invoice template renders every entry here as a product row (with its
+  // own SKU/HSN/qty column), so shipping must NOT be added as a fake item
+  // here. Shiprocket has a dedicated top-level `shipping_charges` field for
+  // exactly this, which appears as its own invoice line without pretending
+  // to be a product (see payload below).
   const orderItems = items.map((item) => {
     // item.price comes straight from the product doc (already rupees) —
     // not from order.amount/itemsAmount, so this was never in paise and
@@ -340,13 +338,6 @@ export async function createShiprocketOrder(order, orderId) {
     // onto each order item) — never hardcode a value here.
     if (item.hsnCode) orderItem.hsn = String(item.hsnCode);
     return orderItem;
-  });
-
-  orderItems.push({
-    name: "Shipping Charges",
-    sku: `shipping-${orderId}`,
-    units: 1,
-    selling_price: Number(shippingAmount || 0).toFixed(2),
   });
 
   const payload = {
@@ -375,7 +366,11 @@ export async function createShiprocketOrder(order, orderId) {
     shipping_email: String(order.contact?.email || ""),
     shipping_phone: String(order.contact?.phone || ""),
     payment_method: "Prepaid",
-    sub_total: Number(subtotal || 0).toFixed(2),
+    // sub_total is the products-only subtotal — shipping is passed
+    // separately via shipping_charges below so Shiprocket renders it as
+    // its own invoice line rather than a fake product row.
+    sub_total: Number(itemsSubtotal || 0).toFixed(2),
+    shipping_charges: Number(shippingAmount || 0).toFixed(2),
     total_discount: "0",
     order_items: orderItems,
     length: Number(process.env.SHIPROCKET_PACKET_LENGTH || 10),
