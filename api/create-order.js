@@ -53,7 +53,11 @@ export default async function handler(req, res) {
     const { resolvedItems, itemsAmountPaise, shippingPaise, totalAmountPaise } = await db.runTransaction(async (tx) => {
       let itemsAmountRupees = 0;
       const resolved = [];
+      const stockUpdates = [];
 
+      // PASS 1: all reads. Firestore transactions require every tx.get()
+      // to happen before any tx.set()/tx.update() — so we can't decrement
+      // stock for item N before reading item N+1.
       for (const it of requested) {
         const productRef = db.collection("products").doc(it.productId);
         const snap = await tx.get(productRef);
@@ -66,8 +70,7 @@ export default async function handler(req, res) {
         if (typeof product.stock === "number") {
           if (product.stock <= 0) throw new Error(`"${product.name}" is out of stock.`);
           if (it.qty > product.stock) throw new Error(`Only ${product.stock} unit(s) of "${product.name}" are available.`);
-          // decrement stock to reserve
-          tx.update(productRef, { stock: product.stock - it.qty });
+          stockUpdates.push({ productRef, newStock: product.stock - it.qty });
         }
 
         itemsAmountRupees += price * it.qty;
@@ -81,6 +84,11 @@ export default async function handler(req, res) {
       }
 
       if (resolved.length === 0) throw new Error("No valid items in cart.");
+
+      // PASS 2: all writes. Safe now — every read above has completed.
+      for (const { productRef, newStock } of stockUpdates) {
+        tx.update(productRef, { stock: newStock });
+      }
 
       const SHIPPING_RATE_RUPEES = Number(process.env.SHIPPING_RATE_RUPEES || 80);
       const SHIPPING_FREE_THRESHOLD_RUPEES = Number(process.env.SHIPPING_FREE_THRESHOLD_RUPEES || 500);
