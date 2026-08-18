@@ -128,7 +128,8 @@ export default function OrderStatusPage() {
 
         {isPaidOrLater ? (
           <p className="order-status-sub" style={{ marginTop: -6 }}>
-            Amount: <strong>{formatPrice((order.totalAmountPaise ?? order.amount ?? order.totalAmount) / 100)}</strong>
+            {/* Firestore stores order amounts in RUPEES, not paise — no /100 conversion. */}
+            Amount: <strong>{formatPrice(order.totalAmount ?? order.amount ?? order.totalAmountPaise)}</strong>
           </p>
         ) : null}
 
@@ -140,8 +141,10 @@ export default function OrderStatusPage() {
               <h3 style={{ marginBottom: 8 }}>Items</h3>
               <div style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
                 {order.items.map((it, i) => {
-                  const unit = order.itemsAmount;
-                  const qty = it.qty || 1;
+                  // Use the item's own price, not order.itemsAmount (which is
+                  // the order-level items subtotal, not a per-unit price).
+                  const unit = Number(it.price ?? it.unitPrice ?? it.unit_amount ?? it.amount ?? 0);
+                  const qty = it.qty || it.quantity || 1;
                   return (
                     <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: i < order.items.length - 1 ? "1px solid var(--line)" : "none" }}>
                       <div>
@@ -149,8 +152,8 @@ export default function OrderStatusPage() {
                         <div style={{ color: "var(--slate)", fontSize: 13 }}>{it.variant || ""} {it.size ? `· ${it.size}` : ""}</div>
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <div>{qty} × {formatPrice(unit / 100)}</div>
-                        <div style={{ fontWeight: 700 }}>{formatPrice((qty * unit) / 100)}</div>
+                        <div>{qty} × {formatPrice(unit)}</div>
+                        <div style={{ fontWeight: 700 }}>{formatPrice(qty * unit)}</div>
                       </div>
                     </div>
                   );
@@ -165,16 +168,16 @@ export default function OrderStatusPage() {
             <div style={{ width: 320, border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <div style={{ color: "var(--slate)" }}>Items</div>
-                <div>{formatPrice((order.itemsAmountPaise ?? order.amount ?? 0) / 100)}</div>
+                <div>{formatPrice(order.itemsAmount ?? order.amount ?? 0)}</div>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
                 <div style={{ color: "var(--slate)" }}>Shipping</div>
-                <div>{formatPrice((order.shippingPaise ?? order.shippingAmount ?? 0) / 100)}</div>
+                <div>{formatPrice(order.shippingAmount ?? order.shippingPaise ?? 0)}</div>
               </div>
               <hr style={{ margin: "10px 0" }} />
               <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
                 <div>Total</div>
-                <div>{formatPrice((order.totalAmountPaise ?? order.amount ?? order.totalAmount ?? 0) / 100)}</div>
+                <div>{formatPrice(order.totalAmount ?? order.amount ?? order.totalAmountPaise ?? 0)}</div>
               </div>
             </div>
           </div>

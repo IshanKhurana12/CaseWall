@@ -319,6 +319,36 @@ export async function createShiprocketOrder(order, orderId) {
   const billingAddress = [order.address?.line1, order.address?.line2].filter(Boolean).join(", ");
   const shippingAddress = [order.address?.line1, order.address?.line2].filter(Boolean).join(", ");
 
+  // Build the product line items first, then always append a dedicated
+  // "Shipping Charges" line (even when shippingAmount is 0) so the invoice
+  // never shows a Net Total that's higher than the sum of visible line
+  // items with no explanation for the difference.
+  const orderItems = items.map((item) => {
+    // item.price comes straight from the product doc (already rupees) —
+    // not from order.amount/itemsAmount, so this was never in paise and
+    // does not need conversion.
+    const unitPrice = Number(item.price ?? item.unitPrice ?? item.unit_amount ?? item.amount ?? 0);
+    const quantity = Number(item.qty || item.quantity || 1);
+    const orderItem = {
+      name: String(item.name || item.title || item.productName || "Product").slice(0, 120),
+      sku: String(item.productId || item.id || `item-${orderId}-${Math.random().toString(36).slice(2, 8)}`),
+      units: quantity,
+      selling_price: Number(unitPrice || 0).toFixed(2),
+    };
+    // Only attach hsn if the underlying product actually had an HSN
+    // code set (see create-order.js, which copies product.hsnCode
+    // onto each order item) — never hardcode a value here.
+    if (item.hsnCode) orderItem.hsn = String(item.hsnCode);
+    return orderItem;
+  });
+
+  orderItems.push({
+    name: "Shipping Charges",
+    sku: `shipping-${orderId}`,
+    units: 1,
+    selling_price: Number(shippingAmount || 0).toFixed(2),
+  });
+
   const payload = {
     order_id: String(orderId),
     order_date: new Date().toISOString(),
@@ -347,24 +377,7 @@ export async function createShiprocketOrder(order, orderId) {
     payment_method: "Prepaid",
     sub_total: Number(subtotal || 0).toFixed(2),
     total_discount: "0",
-    order_items: items.map((item) => {
-      // item.price comes straight from the product doc (already rupees) —
-      // not from order.amount/itemsAmount, so this was never in paise and
-      // does not need conversion.
-      const unitPrice = Number(item.price ?? item.unitPrice ?? item.unit_amount ?? item.amount ?? 0);
-      const quantity = Number(item.qty || item.quantity || 1);
-      const orderItem = {
-        name: String(item.name || item.title || item.productName || "Product").slice(0, 120),
-        sku: String(item.productId || item.id || `item-${orderId}-${Math.random().toString(36).slice(2, 8)}`),
-        units: quantity,
-        selling_price: Number(unitPrice || 0).toFixed(2),
-      };
-      // Only attach hsn if the underlying product actually had an HSN
-      // code set (see create-order.js, which copies product.hsnCode
-      // onto each order item) — never hardcode a value here.
-      if (item.hsnCode) orderItem.hsn = String(item.hsnCode);
-      return orderItem;
-    }),
+    order_items: orderItems,
     length: Number(process.env.SHIPROCKET_PACKET_LENGTH || 10),
     breadth: Number(process.env.SHIPROCKET_PACKET_BREADTH || 10),
     height: Number(process.env.SHIPROCKET_PACKET_HEIGHT || 5),

@@ -6,7 +6,9 @@ import { STORE_NAME } from "../config";
 import "../cartCheckout.css";
 
 function SummaryCard({ order, onView }) {
-  const amount = order.totalAmountPaise ?? order.amount ?? order.totalAmount;
+  // Firestore stores order amounts in RUPEES (not paise), so this is
+  // displayed as-is with no /100 conversion.
+  const amount = order.totalAmount ?? order.amount ?? order.totalAmountPaise;
   const created = order.createdAt ? new Date(order.createdAt.seconds ? order.createdAt.seconds * 1000 : order.createdAt).toLocaleString() : null;
   return (
     <div className="order-card" style={{ border: "1px solid var(--line)", padding: 12, borderRadius: 8, marginBottom: 10 }}>
@@ -16,7 +18,7 @@ function SummaryCard({ order, onView }) {
           {created && <div style={{ color: "var(--slate)", fontSize: 13 }}>{created}</div>}
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontWeight: 700 }}>{amount ? `₹${Math.round((amount || 0) / 100)}` : "—"}</div>
+          <div style={{ fontWeight: 700 }}>{amount ? `₹${Math.round(amount || 0)}` : "—"}</div>
           <div style={{ color: "var(--slate)", fontSize: 13 }}>{order.status || "—"}</div>
         </div>
       </div>
