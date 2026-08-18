@@ -64,11 +64,15 @@ export default async function handler(req, res) {
         if (snap.exists) {
           const order = snap.data();
           if (order.razorpayOrderId === razorpayOrderId && order.status !== "paid") {
-            // Verify payment amount matches expected server-side amount (paise)
+            // Verify payment amount matches expected server-side amount.
+            // Razorpay's payment.amount is always in paise. order.amount
+            // is stored in Firestore in RUPEES, so convert it to paise
+            // here for the comparison — do not compare them directly.
             const paidAmount = payment.amount;
-            if (Number(paidAmount) !== Number(order.amount)) {
-              console.error("Webhook payment amount mismatch", orderId, paidAmount, order.amount);
-              await orderRef.update({ paymentAmountMismatch: true, paymentAmount: paidAmount, expectedAmount: order.amount });
+            const expectedAmountPaise = Math.round(Number(order.amount) * 100);
+            if (Number(paidAmount) !== expectedAmountPaise) {
+              console.error("Webhook payment amount mismatch", orderId, paidAmount, expectedAmountPaise);
+              await orderRef.update({ paymentAmountMismatch: true, paymentAmount: paidAmount, expectedAmount: expectedAmountPaise });
             } else {
               await orderRef.update({
                 status: "paid",
