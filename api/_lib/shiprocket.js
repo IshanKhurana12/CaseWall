@@ -307,8 +307,15 @@ export async function createShiprocketOrder(order, orderId) {
   const token = await getShiprocketToken();
 
   const items = Array.isArray(order.items) ? order.items : [];
-  const shippingAmount = Number(order.shippingAmount ?? order.shippingPaise ?? 0) / 100;
-  const subtotal = Number(order.itemsAmount ?? order.amount ?? 0) / 100;
+  // order.shippingAmount / order.itemsAmount / order.amount are stored in
+  // RUPEES in Firestore, so no /100 conversion here (Shiprocket's API
+  // expects plain rupee values, unlike Razorpay which needs paise).
+  const shippingAmount = Number(order.shippingAmount ?? order.shippingPaise ?? 0);
+  const itemsSubtotal = Number(order.itemsAmount ?? order.amount ?? 0);
+  // Shipping is folded into sub_total (not sent as a separate
+  // shipping_charges line) so the whole order value is taxed as one
+  // product amount on the Shiprocket invoice.
+  const subtotal = itemsSubtotal + shippingAmount;
   const billingAddress = [order.address?.line1, order.address?.line2].filter(Boolean).join(", ");
   const shippingAddress = [order.address?.line1, order.address?.line2].filter(Boolean).join(", ");
 
@@ -339,17 +346,24 @@ export async function createShiprocketOrder(order, orderId) {
     shipping_phone: String(order.contact?.phone || ""),
     payment_method: "Prepaid",
     sub_total: Number(subtotal || 0).toFixed(2),
-    shipping_charges: Number(shippingAmount || 0).toFixed(2),
     total_discount: "0",
     order_items: items.map((item) => {
-      const unitPrice = Number(item.price ?? item.unitPrice ?? item.unit_amount ?? item.amount ?? 0) / 100;
+      // item.price comes straight from the product doc (already rupees) —
+      // not from order.amount/itemsAmount, so this was never in paise and
+      // does not need conversion.
+      const unitPrice = Number(item.price ?? item.unitPrice ?? item.unit_amount ?? item.amount ?? 0);
       const quantity = Number(item.qty || item.quantity || 1);
-      return {
+      const orderItem = {
         name: String(item.name || item.title || item.productName || "Product").slice(0, 120),
         sku: String(item.productId || item.id || `item-${orderId}-${Math.random().toString(36).slice(2, 8)}`),
         units: quantity,
         selling_price: Number(unitPrice || 0).toFixed(2),
       };
+      // Only attach hsn if the underlying product actually had an HSN
+      // code set (see create-order.js, which copies product.hsnCode
+      // onto each order item) — never hardcode a value here.
+      if (item.hsnCode) orderItem.hsn = String(item.hsnCode);
+      return orderItem;
     }),
     length: Number(process.env.SHIPROCKET_PACKET_LENGTH || 10),
     breadth: Number(process.env.SHIPROCKET_PACKET_BREADTH || 10),

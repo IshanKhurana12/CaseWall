@@ -46,7 +46,10 @@ export default async function handler(req, res) {
     const orderId = orderRef.id;
     const reservationUntil = new Date(Date.now() + RESERVATION_MINUTES * 60 * 1000).toISOString();
 
-    // Reserve stock and create order document atomically
+    // Reserve stock and create order document atomically.
+    // Firestore stores amounts in RUPEES. Razorpay still needs paise,
+    // so we keep computing the paise versions too, only for the
+    // Razorpay API call and the response below (unchanged behavior).
     const { resolvedItems, itemsAmountPaise, shippingPaise, totalAmountPaise } = await db.runTransaction(async (tx) => {
       let itemsAmountRupees = 0;
       const resolved = [];
@@ -68,7 +71,13 @@ export default async function handler(req, res) {
         }
 
         itemsAmountRupees += price * it.qty;
-        resolved.push({ productId: it.productId, name: product.name, price, qty: it.qty });
+        const resolvedItem = { productId: it.productId, name: product.name, price, qty: it.qty };
+        // Only attach these if the product actually has them — don't
+        // write hsnCode/gstRate as null/undefined for products that
+        // don't have them set.
+        if (product.hsnCode) resolvedItem.hsnCode = String(product.hsnCode);
+        if (product.gstRate != null && product.gstRate !== "") resolvedItem.gstRate = Number(product.gstRate);
+        resolved.push(resolvedItem);
       }
 
       if (resolved.length === 0) throw new Error("No valid items in cart.");
@@ -76,8 +85,15 @@ export default async function handler(req, res) {
       const SHIPPING_RATE_RUPEES = Number(process.env.SHIPPING_RATE_RUPEES || 80);
       const SHIPPING_FREE_THRESHOLD_RUPEES = Number(process.env.SHIPPING_FREE_THRESHOLD_RUPEES || 500);
       const shippingRupees = itemsAmountRupees >= SHIPPING_FREE_THRESHOLD_RUPEES ? 0 : SHIPPING_RATE_RUPEES;
-      const itemsAmountPaiseLocal = Math.round(itemsAmountRupees * 100);
-      const shippingPaiseLocal = Math.round(shippingRupees * 100);
+
+      // Rounded rupee values — these are what get stored in Firestore.
+      const itemsAmountRupeesRounded = Math.round(itemsAmountRupees * 100) / 100;
+      const shippingRupeesRounded = Math.round(shippingRupees * 100) / 100;
+      const totalRupeesRounded = Math.round((itemsAmountRupeesRounded + shippingRupeesRounded) * 100) / 100;
+
+      // Paise versions — only used for Razorpay + the API response, same as before.
+      const itemsAmountPaiseLocal = Math.round(itemsAmountRupeesRounded * 100);
+      const shippingPaiseLocal = Math.round(shippingRupeesRounded * 100);
       const totalPaiseLocal = itemsAmountPaiseLocal + shippingPaiseLocal;
 
       tx.set(orderRef, {
@@ -94,9 +110,10 @@ export default async function handler(req, res) {
           state: String(address.state).slice(0, 100),
           pincode: String(address.pincode),
         },
-        amount: totalPaiseLocal,
-        itemsAmount: itemsAmountPaiseLocal,
-        shippingAmount: shippingPaiseLocal,
+        // Stored in RUPEES (not paise).
+        amount: totalRupeesRounded,
+        itemsAmount: itemsAmountRupeesRounded,
+        shippingAmount: shippingRupeesRounded,
         currency: "INR",
         status: "reserved",
         reservedUntil: reservationUntil,
