@@ -47,10 +47,13 @@ export default async function handler(req, res) {
     try {
       const razorpay = getRazorpay();
       const payment = await razorpay.payments.fetch(razorpay_payment_id);
-      // Razorpay returns amount in paise; our order.amount is stored in paise.
-      if (Number(payment.amount) !== Number(order.amount)) {
-        console.error("Payment amount mismatch for order", orderId, payment.amount, order.amount);
-        await orderRef.update({ paymentAmountMismatch: true, paymentAmount: payment.amount, expectedAmount: order.amount });
+      // Razorpay returns payment.amount in paise. order.amount is stored
+      // in Firestore in RUPEES, so convert it to paise before comparing —
+      // never compare them directly.
+      const expectedAmountPaise = Math.round(Number(order.amount) * 100);
+      if (Number(payment.amount) !== expectedAmountPaise) {
+        console.error("Payment amount mismatch for order", orderId, payment.amount, expectedAmountPaise);
+        await orderRef.update({ paymentAmountMismatch: true, paymentAmount: payment.amount, expectedAmount: expectedAmountPaise });
         return res.status(400).json({ error: "Payment amount does not match order amount." });
       }
       if (!payment.captured && payment.status !== "captured") {
