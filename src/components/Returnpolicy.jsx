@@ -73,6 +73,9 @@ export default function ReturnPolicy() {
               No returns, exchanges, or refunds are accepted{" "}
               <strong>after 2 days</strong> of delivery.
             </li>
+             <li>
+             Taxes and Shipping is non Refundable.
+            </li>
             <li>
               We don't offer cash or bank refunds. Refunds are issued only as{" "}
               <strong>store credit</strong>, valid for{" "}
