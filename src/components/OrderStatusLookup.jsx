@@ -4,6 +4,7 @@ import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
 import { STORE_NAME } from "../config";
 import "../cartCheckout.css";
+import { Link } from "react-router-dom";
 
 function SummaryCard({ order, onView }) {
   // Firestore stores order amounts in RUPEES (not paise), so this is
@@ -80,6 +81,7 @@ export default function OrderStatusLookup() {
 
   return (
     <div className="page">
+       <Link to="/" className="back-link">← Back to {STORE_NAME}</Link>
       <div className="order-status-wrap">
         <h1 className="order-status-title">Find your orders</h1>
         <p className="order-status-sub">Search by Order ID, email, or phone number used for the order.</p>

@@ -3,6 +3,35 @@ import { getRazorpay } from "./_lib/razorpay.js";
 
 const RESERVATION_MINUTES = 15;
 
+// Resolve "variant" for a cart item — a real variant doc if the product has
+// variants, otherwise the product doc itself acts as the (legacy) variant.
+// This is what lets old flat products keep working with zero migration.
+async function resolveVariant(tx, db, productRef, requestedVariantId) {
+  const productSnap = await tx.get(productRef);
+  if (!productSnap.exists) throw new Error("A product in your cart is no longer available.");
+  const product = productSnap.data();
+
+  if (!requestedVariantId || requestedVariantId === "_legacy") {
+    return {
+      product,
+      variantRef: productRef,
+      variant: {
+        price: product.price,
+        stock: product.stock,
+        reservedStock: product.reservedStock || 0,
+        model: product.model || null,
+        color: null,
+        active: product.inStock === false ? false : true,
+      },
+    };
+  }
+
+  const variantRef = productRef.collection("variants").doc(requestedVariantId);
+  const variantSnap = await tx.get(variantRef);
+  if (!variantSnap.exists) throw new Error("A product in your cart is no longer available.");
+  return { product, variantRef, variant: variantSnap.data() };
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -30,13 +59,15 @@ export default async function handler(req, res) {
 
     const db = getAdminDb();
 
-    // Normalize requested items
+    // Normalize requested items. variantId is optional — missing/"_legacy"
+    // means "old flat product, no variant subcollection".
     const requested = items
       .map((raw) => {
         const productId = String(raw.productId || "");
+        const variantId = raw.variantId ? String(raw.variantId) : "_legacy";
         const qty = Math.max(1, Math.min(20, parseInt(raw.qty, 10) || 1));
         if (!productId) return null;
-        return { productId, qty };
+        return { productId, variantId, qty };
       })
       .filter(Boolean);
 
@@ -60,21 +91,35 @@ export default async function handler(req, res) {
       // stock for item N before reading item N+1.
       for (const it of requested) {
         const productRef = db.collection("products").doc(it.productId);
-        const snap = await tx.get(productRef);
-        if (!snap.exists) throw new Error("A product in your cart is no longer available.");
-        const product = snap.data();
-        if (product.inStock === false) throw new Error(`"${product.name}" is out of stock.`);
-        const price = Number(product.price);
+        const { product, variantRef, variant } = await resolveVariant(tx, db, productRef, it.variantId);
+
+        if (variant.active === false) throw new Error(`"${product.name}" is no longer available.`);
+
+        const price = Number(variant.price);
         if (!price || price <= 0) throw new Error(`"${product.name}" doesn't have a valid price.`);
 
-        if (typeof product.stock === "number") {
-          if (product.stock <= 0) throw new Error(`"${product.name}" is out of stock.`);
-          if (it.qty > product.stock) throw new Error(`Only ${product.stock} unit(s) of "${product.name}" are available.`);
-          stockUpdates.push({ productRef, newStock: product.stock - it.qty });
-        }
+        const label = variant.model
+          ? `${product.name} (${variant.model}${variant.color ? ` - ${variant.color}` : ""})`
+          : product.name;
+
+        if (typeof variant.stock !== "number") throw new Error(`"${label}" has no stock configured.`);
+        const reservedStock = variant.reservedStock || 0;
+        const available = variant.stock - reservedStock;
+        if (available <= 0) throw new Error(`"${label}" is out of stock.`);
+        if (it.qty > available) throw new Error(`Only ${available} unit(s) of "${label}" are available.`);
+
+        stockUpdates.push({ variantRef, reserveQty: it.qty });
 
         itemsAmountRupees += price * it.qty;
-        const resolvedItem = { productId: it.productId, name: product.name, price, qty: it.qty };
+        const resolvedItem = {
+          productId: it.productId,
+          variantId: it.variantId, // "_legacy" for old flat products
+          name: label,
+          model: variant.model || null,
+          color: variant.color || null,
+          price,
+          qty: it.qty,
+        };
         // Only attach these if the product actually has them — don't
         // write hsnCode/gstRate as null/undefined for products that
         // don't have them set.
@@ -86,8 +131,13 @@ export default async function handler(req, res) {
       if (resolved.length === 0) throw new Error("No valid items in cart.");
 
       // PASS 2: all writes. Safe now — every read above has completed.
-      for (const { productRef, newStock } of stockUpdates) {
-        tx.update(productRef, { stock: newStock });
+      // Holds stock via reservedStock instead of decrementing stock directly,
+      // so `stock` only drops on confirmed payment and an expiry/cancel just
+      // undoes the hold rather than needing to "add back" a possibly-stale number.
+      for (const { variantRef, reserveQty } of stockUpdates) {
+        const snap = await tx.get(variantRef); // cheap re-read, already cached by the transaction
+        const current = snap.data();
+        tx.update(variantRef, { reservedStock: (current.reservedStock || 0) + reserveQty });
       }
 
       const SHIPPING_RATE_RUPEES = Number(process.env.SHIPPING_RATE_RUPEES || 80);
@@ -151,13 +201,15 @@ export default async function handler(req, res) {
           if (!orderSnap.exists) return;
           const orderDoc = orderSnap.data();
           for (const it of orderDoc.items || []) {
-            const prodRef = db.collection("products").doc(it.productId);
-            const prodSnap = await tx.get(prodRef);
-            if (!prodSnap.exists) continue;
-            const prod = prodSnap.data();
-            if (typeof prod.stock === "number") {
-              tx.update(prodRef, { stock: prod.stock + (it.qty || 0) });
-            }
+            const productRef = db.collection("products").doc(it.productId);
+            const variantRef =
+              !it.variantId || it.variantId === "_legacy"
+                ? productRef
+                : productRef.collection("variants").doc(it.variantId);
+            const variantSnap = await tx.get(variantRef);
+            if (!variantSnap.exists) continue;
+            const variant = variantSnap.data();
+            tx.update(variantRef, { reservedStock: Math.max(0, (variant.reservedStock || 0) - (it.qty || 0)) });
           }
           tx.update(orderRef, { status: "cancelled", cancelledAt: new Date().toISOString(), cancelledReason: "razorpay_creation_failed" });
         });

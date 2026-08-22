@@ -327,12 +327,16 @@ export async function createShiprocketOrder(order, orderId) {
     // does not need conversion.
     const unitPrice = Number(item.price ?? item.unitPrice ?? item.unit_amount ?? item.amount ?? 0);
     const quantity = Number(item.qty || item.quantity || 1);
-    const orderItem = {
-      name: String(item.name || item.title || item.productName || "Product").slice(0, 120),
-      sku: String(item.productId || item.id || `item-${orderId}-${Math.random().toString(36).slice(2, 8)}`),
-      units: quantity,
-      selling_price: Number(unitPrice || 0).toFixed(2),
-    };
+   const orderItem = {
+  name: String(item.name || item.title || item.productName || "Product").slice(0, 120),
+  sku: String(
+    item.variantId && item.variantId !== "_legacy"
+      ? `${item.productId}-${item.variantId}`
+      : item.productId || item.id || `item-${orderId}-${Math.random().toString(36).slice(2, 8)}`
+  ),
+  units: quantity,
+  selling_price: Number(unitPrice || 0).toFixed(2),
+};
     // Only attach hsn if the underlying product actually had an HSN
     // code set (see create-order.js, which copies product.hsnCode
     // onto each order item) — never hardcode a value here.

@@ -1,9 +1,10 @@
 import { getAdminDb } from "./_lib/firebaseAdmin.js";
 
 // This endpoint scans for orders in "reserved" state whose reservedUntil
-// timestamp has passed, cancels them, and restores the product stock.
-// It is intended to be called periodically (e.g. via a cron job) or run
-// manually by the operator.
+// timestamp has passed, cancels them, and releases the held reservedStock
+// on whichever doc actually holds it — a real variant, or (for old flat
+// products with no variants subcollection) the product doc itself.
+// It is intended to be called periodically (e.g. via a Vercel cron job).
 
 export default async function handler(req, res) {
   if (req.method !== "POST" && req.method !== "GET") {
@@ -32,15 +33,17 @@ export default async function handler(req, res) {
           if (order.status !== "reserved") return;
           if (!order.reservedUntil || order.reservedUntil > new Date().toISOString()) return;
 
-          // Restore stock for each item
+          // Release the held reservedStock for each item
           for (const it of order.items || []) {
-            const prodRef = db.collection("products").doc(it.productId);
-            const prodSnap = await tx.get(prodRef);
-            if (!prodSnap.exists) continue;
-            const prod = prodSnap.data();
-            if (typeof prod.stock === "number") {
-              tx.update(prodRef, { stock: (prod.stock || 0) + (it.qty || 0) });
-            }
+            const productRef = db.collection("products").doc(it.productId);
+            const variantRef =
+              !it.variantId || it.variantId === "_legacy"
+                ? productRef
+                : productRef.collection("variants").doc(it.variantId);
+            const variantSnap = await tx.get(variantRef);
+            if (!variantSnap.exists) continue;
+            const variant = variantSnap.data();
+            tx.update(variantRef, { reservedStock: Math.max(0, (variant.reservedStock || 0) - (it.qty || 0)) });
           }
 
           tx.update(orderRef, { status: "cancelled", cancelledAt: new Date().toISOString(), cancelledReason: "reservation_expired" });

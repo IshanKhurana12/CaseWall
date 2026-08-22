@@ -12,6 +12,48 @@ function isValidSignature(orderId, paymentId, signature) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+// Permanently commits stock for a paid order: stock -= qty, reservedStock -= qty,
+// on whichever doc holds the reservation (real variant, or the product doc
+// itself for legacy non-variant products). Wrapped in a transaction so a
+// concurrent read/write on the same variant can't race with anything else
+// touching it (e.g. another order's reservation, or cleanup releasing an
+// unrelated expired hold).
+async function commitOrderStock(db, order) {
+  await db.runTransaction(async (tx) => {
+    const refs = [];
+    for (const it of order.items || []) {
+      const productRef = db.collection("products").doc(it.productId);
+      const variantRef =
+        !it.variantId || it.variantId === "_legacy"
+          ? productRef
+          : productRef.collection("variants").doc(it.variantId);
+      refs.push({ variantRef, qty: it.qty || 0 });
+    }
+
+    // PASS 1: reads
+    const snaps = [];
+    for (const r of refs) {
+      snaps.push(await tx.get(r.variantRef));
+    }
+
+    // PASS 2: writes
+    snaps.forEach((snap, i) => {
+      if (!snap.exists) return; // product/variant deleted since order was placed — nothing to commit
+      const data = snap.data();
+      const { variantRef, qty } = refs[i];
+      if (typeof data.stock === "number") {
+        tx.update(variantRef, {
+          stock: Math.max(0, data.stock - qty),
+          reservedStock: Math.max(0, (data.reservedStock || 0) - qty),
+        });
+      } else {
+        // No numeric stock tracked on this doc — just release the hold.
+        tx.update(variantRef, { reservedStock: Math.max(0, (data.reservedStock || 0) - qty) });
+      }
+    });
+  });
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -67,6 +109,16 @@ export default async function handler(req, res) {
 
     // Idempotent: if the webhook already marked this order paid, don't redo work.
     if (order.status !== "paid") {
+      // Commit stock BEFORE flipping status to "paid" and firing side effects,
+      // so if this fails we haven't sent a confirmation email for stock that
+      // was never actually deducted.
+      try {
+        await commitOrderStock(db, order);
+      } catch (stockErr) {
+        console.error("Failed to commit stock for order", orderId, stockErr);
+        return res.status(500).json({ error: "Could not finalize your order. Please contact support." });
+      }
+
       await orderRef.update({
         status: "paid",
         razorpayPaymentId: razorpay_payment_id,

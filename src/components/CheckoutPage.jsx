@@ -74,14 +74,14 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      // The server re-fetches each product's real price from Firestore —
-      // the cart here only sends product ids/quantities, never amounts, so
+      // The server re-fetches each variant's real price from Firestore —
+      // the cart here only sends productId/variantId/qty, never amounts, so
       // a customer can't tamper with prices client-side.
       const createRes = await fetch("/api/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: items.map((i) => ({ productId: i.id, qty: i.qty })),
+          items: items.map((i) => ({ productId: i.productId, variantId: i.variantId, qty: i.qty })),
           contact: { name: form.name.trim(), phone: form.phone.trim(), email: form.email.trim() },
           address: {
             line1: form.line1.trim(),
@@ -188,8 +188,14 @@ export default function CheckoutPage() {
 
         <div className="cart-summary" style={{ marginBottom: 24 }}>
           {items.map((i) => (
-            <div className="checkout-summary-line" key={i.id}>
-              <span>{i.name} × {i.qty}</span>
+            <div className="checkout-summary-line" key={i.key}>
+              <span>
+                {i.name}
+                {(i.model || i.color) && (
+                  <> ({i.model}{i.model && i.color ? " · " : ""}{i.color})</>
+                )}
+                {" "}× {i.qty}
+              </span>
               <span>{formatPrice((Number(i.price) || 0) * i.qty)}</span>
             </div>
           ))}
@@ -254,24 +260,8 @@ export default function CheckoutPage() {
               onChange={(e) => setAgreed(e.target.checked)}
             />
             <label htmlFor="agree">
-             
               <span className="pp-policy-badge">Read the policy for return and refunds before placing the order</span>
               <p> <a href="/returnPolicy">Read the full policy →</a></p>
-            
-              {/* <a href="/#faq" target="_blank" rel="noreferrer">Read the full policy →</a> */}
-
-                {/* <a className="wa-button wa-button-secondary"
-            href={buildWhatsAppLink(product)}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Ask about ${product.name ?? "this cover"} on WhatsApp`}
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
-              <path d="M12.004 2c-5.514 0-9.997 4.478-9.997 9.997 0 1.762.464 3.484 1.345 4.997L2 22l5.144-1.342a9.96 9.96 0 004.86 1.238h.004c5.514 0 9.997-4.478 9.997-9.997 0-2.671-1.04-5.182-2.927-7.07A9.935 9.935 0 0012.004 2zm0 18.153a8.13 8.13 0 01-4.144-1.134l-.297-.176-3.054.797.815-2.978-.193-.306a8.14 8.14 0 01-1.256-4.36c0-4.501 3.66-8.161 8.162-8.161 2.18 0 4.229.85 5.77 2.393a8.106 8.106 0 012.39 5.775c-.003 4.502-3.663 8.15-8.193 8.15z" />
-            </svg>
-            Ask on WhatsApp instead
-          </a> */}
             </label>
           </div>
 

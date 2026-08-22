@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 const CartContext = createContext(null);
-const STORAGE_KEY = "casewall_cart_v1";
+const STORAGE_KEY = "casewall_cart_v2"; // bumped: v1 items lack variantId and would be stale
 
 function loadCart() {
   try {
@@ -12,6 +12,10 @@ function loadCart() {
   } catch {
     return [];
   }
+}
+
+function cartKey(productId, variantId) {
+  return `${productId}::${variantId || "_legacy"}`;
 }
 
 // NOTE: prices shown here are for display only. The real price used for
@@ -28,34 +32,47 @@ export function CartProvider({ children }) {
     }
   }, [items]);
 
-  function addItem(product, qty = 1) {
+  // `product` = the parent product doc ({ id, name, currency, ... })
+  // `variant` = the specific variant ({ id, model, color, price, stock, imageUrls, ... })
+  //             — for old flat products with no variants subcollection, pass
+  //             { id: "_legacy", model: product.model, color: null, price: product.price, imageUrls: product.imageUrls }
+  function addItem(product, variant, qty = 1) {
+    const key = cartKey(product.id, variant.id);
     setItems((prev) => {
-      const existing = prev.find((i) => i.id === product.id);
+      const existing = prev.find((i) => i.key === key);
       if (existing) {
-        return prev.map((i) => (i.id === product.id ? { ...i, qty: i.qty + qty } : i));
+        return prev.map((i) => (i.key === key ? { ...i, qty: i.qty + qty } : i));
       }
       return [
         ...prev,
         {
-          id: product.id,
+          key,
+          productId: product.id,
+          variantId: variant.id,
           name: product.name,
-          model: product.model,
-          price: product.price,
+          model: variant.model,
+          color: variant.color || null,
+          price: variant.price,
           currency: product.currency || "INR",
-          image: Array.isArray(product.imageUrls) ? product.imageUrls[0] : product.imageUrl,
+          image:
+            (Array.isArray(variant.imageUrls) && variant.imageUrls[0]) ||
+            (Array.isArray(product.imageUrls) && product.imageUrls[0]) ||
+            product.imageUrl,
           qty,
         },
       ];
     });
   }
 
-  function removeItem(id) {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  function removeItem(productId, variantId) {
+    const key = cartKey(productId, variantId);
+    setItems((prev) => prev.filter((i) => i.key !== key));
   }
 
-  function updateQty(id, qty) {
-    if (qty <= 0) return removeItem(id);
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, qty } : i)));
+  function updateQty(productId, variantId, qty) {
+    const key = cartKey(productId, variantId);
+    if (qty <= 0) return removeItem(productId, variantId);
+    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, qty } : i)));
   }
 
   function clearCart() {

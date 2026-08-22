@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import { useCart } from "../context/CartContext";
 import { RETURN_POLICY_SHORT, STORE_NAME, WHATSAPP_NUMBER } from "../config";
@@ -54,17 +54,38 @@ function formatJewelleryType(type) {
     .join(" ");
 }
 
+// A single "legacy" pseudo-variant so non-variant products flow through
+// the exact same selectedVariant-driven code path below.
+function legacyVariantFrom(product) {
+  return {
+    id: "_legacy",
+    model: product.model || null,
+    color: null,
+    price: product.price,
+    mrp: product.mrp,
+    stock: product.stock,
+    reservedStock: product.reservedStock || 0,
+    inStock: product.inStock,
+    imageUrls: product.imageUrls,
+    active: product.inStock === false ? false : true,
+  };
+}
+
 export default function ProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addItem, count, items, updateQty } = useCart();
 
   const [product, setProduct] = useState(null);
+  const [variants, setVariants] = useState([]); // real variants, empty for legacy products
   const [status, setStatus] = useState("loading"); // loading | ready | notfound | error
   const [activeIndex, setActiveIndex] = useState(0);
-  const [qty, setQty] = useState(0);
   const [modalMsg, setModalMsg] = useState("");
   const [activeReviewImage, setActiveReviewImage] = useState(null);
+
+  // --- variant selection state ---
+  const [selectedModel, setSelectedModel] = useState(null);
+  const [selectedColor, setSelectedColor] = useState(null);
 
   // --- write-a-review state ---
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -76,17 +97,36 @@ export default function ProductPage() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      console.debug("ProductPage: loading product", id);
       setStatus("loading");
       try {
         const snap = await getDoc(doc(db, "products", id));
-        console.debug("ProductPage: got snap exists=", snap.exists());
         if (cancelled) return;
         if (!snap.exists()) {
           setStatus("notfound");
           return;
         }
-        setProduct({ id: snap.id, ...snap.data() });
+        const productData = { id: snap.id, ...snap.data() };
+        setProduct(productData);
+
+        if (productData.hasVariants) {
+          const variantsSnap = await getDocs(collection(db, "products", id, "variants"));
+          if (cancelled) return;
+          const variantList = variantsSnap.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .filter((v) => v.active !== false);
+          setVariants(variantList);
+
+          // default selection: first available model, first available color for it
+          if (variantList.length > 0) {
+            const firstModel = variantList[0].model;
+            setSelectedModel(firstModel);
+            const firstColorForModel = variantList.find((v) => v.model === firstModel);
+            setSelectedColor(firstColorForModel?.color ?? null);
+          }
+        } else {
+          setVariants([]);
+        }
+
         if (!cancelled) setStatus("ready");
       } catch (err) {
         console.error("Failed to load product:", err);
@@ -99,12 +139,48 @@ export default function ProductPage() {
     };
   }, [id]);
 
-  // keep local qty in sync with cart
+  // models available, in the order they first appear among variants
+  const models = useMemo(() => {
+    const seen = [];
+    for (const v of variants) {
+      if (v.model && !seen.includes(v.model)) seen.push(v.model);
+    }
+    return seen;
+  }, [variants]);
+
+  // colors available for the currently selected model
+  const colorsForSelectedModel = useMemo(() => {
+    if (!selectedModel) return [];
+    const seen = [];
+    for (const v of variants) {
+      if (v.model === selectedModel && v.color && !seen.includes(v.color)) seen.push(v.color);
+    }
+    return seen;
+  }, [variants, selectedModel]);
+
+  // when the model changes, make sure selectedColor is still valid for it
   useEffect(() => {
-    if (!product) return;
-    const existing = items.find((i) => i.id === product.id);
-    setQty(existing ? existing.qty : 0);
-  }, [product, items]);
+    if (!selectedModel) return;
+    const stillValid = variants.some((v) => v.model === selectedModel && v.color === selectedColor);
+    if (!stillValid) {
+      const fallback = variants.find((v) => v.model === selectedModel);
+      setSelectedColor(fallback?.color ?? null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedModel, variants]);
+
+  const selectedVariant = useMemo(() => {
+    if (!product) return null;
+    if (!product.hasVariants) return legacyVariantFrom(product);
+    return variants.find((v) => v.model === selectedModel && v.color === selectedColor) || null;
+  }, [product, variants, selectedModel, selectedColor]);
+
+  // qty of the *currently selected variant* that's already in the cart
+  const cartQtyForSelectedVariant = useMemo(() => {
+    if (!product || !selectedVariant) return 0;
+    const existing = items.find((i) => i.productId === product.id && i.variantId === selectedVariant.id);
+    return existing ? existing.qty : 0;
+  }, [items, product, selectedVariant]);
 
   if (status === "loading") {
     return (
@@ -127,14 +203,22 @@ export default function ProductPage() {
     );
   }
 
-  const price = formatPrice(product.price, product.currency);
-  const mrp = formatPrice(product.mrp, product.currency);
-  const outOfStock = product.inStock === false;
-  const hasStockCount = typeof product.stock === "number";
-  const maxStock = hasStockCount ? Math.max(0, Number(product.stock)) : Infinity;
-  const outOfStockEffective = outOfStock || maxStock === 0;
+  const price = formatPrice(selectedVariant?.price, product.currency);
+  const mrp = formatPrice(product.hasVariants ? selectedVariant?.mrp : product.mrp, product.currency);
+
+  const outOfStock = selectedVariant ? selectedVariant.inStock === false : true;
+  const hasStockCount = selectedVariant && typeof selectedVariant.stock === "number";
+  const rawAvailable = hasStockCount
+    ? Math.max(0, Number(selectedVariant.stock) - Number(selectedVariant.reservedStock || 0))
+    : Infinity;
+  const maxStock = hasStockCount ? rawAvailable : Infinity;
+  const outOfStockEffective = !selectedVariant || outOfStock || maxStock === 0;
+
+  const variantImages = Array.isArray(selectedVariant?.imageUrls) ? selectedVariant.imageUrls : null;
   const images =
-    Array.isArray(product.imageUrls) && product.imageUrls.length > 0
+    variantImages && variantImages.length > 0
+      ? variantImages
+      : Array.isArray(product.imageUrls) && product.imageUrls.length > 0
       ? product.imageUrls
       : product.imageUrl
       ? [product.imageUrl]
@@ -150,23 +234,19 @@ export default function ProductPage() {
   const allReviews = normalizeReviews(product.reviews);
   const visibleReviews = allReviews.filter((r) => r.verified);
 
-  // add-to-cart removed; qty stepper will update cart directly
-
   function handleBuyNow() {
-    if (outOfStockEffective) {
+    if (outOfStockEffective || !selectedVariant) {
       setModalMsg("This product is out of stock.");
       return;
     }
-    const desired = qty <= 0 ? 1 : qty;
-    const existing = items.find((i) => i.id === product.id);
-    if (!existing) {
+    const desired = cartQtyForSelectedVariant <= 0 ? 1 : cartQtyForSelectedVariant;
+    if (cartQtyForSelectedVariant <= 0) {
       if (hasStockCount && desired > maxStock) {
         setModalMsg(`Only ${maxStock} unit(s) of "${product.name}" are available.`);
         return;
       }
-      addItem(product, desired);
+      addItem(product, selectedVariant, desired);
     }
-    // if it already exists, don't change qty — just go to cart
     navigate("/cart");
   }
 
@@ -199,8 +279,6 @@ export default function ProductPage() {
     const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
 
-    // Reset the form and show the "pending verification" state once they
-    // come back from WhatsApp.
     setReviewSubmitted(true);
     setShowReviewForm(false);
     setReviewName("");
@@ -240,7 +318,7 @@ export default function ProductPage() {
           </div>
 
           <div className="pp-details">
-            {product.model && <p className="card-model">{product.model}</p>}
+            {selectedVariant?.model && <p className="card-model">{selectedVariant.model}</p>}
             <h1 className="pp-name">{product.name}</h1>
 
             {jewelleryTypes.length > 0 && (
@@ -260,26 +338,68 @@ export default function ProductPage() {
 
             {product.description && <p className="pp-desc">{product.description}</p>}
 
+            {/* --- variant picker: only rendered for products that actually have variants --- */}
+            {product.hasVariants && (
+              <div className="pp-variant-picker">
+                {models.length > 0 && (
+                  <div className="pp-variant-group">
+                    <p className="pp-variant-label">Model</p>
+                    <div className="pp-variant-options">
+                      {models.map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          className={"pp-variant-chip" + (m === selectedModel ? " pp-variant-chip-active" : "")}
+                          onClick={() => setSelectedModel(m)}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {colorsForSelectedModel.length > 0 && (
+                  <div className="pp-variant-group">
+                    <p className="pp-variant-label">Colour</p>
+                    <div className="pp-variant-options">
+                      {colorsForSelectedModel.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          className={"pp-variant-chip" + (c === selectedColor ? " pp-variant-chip-active" : "")}
+                          onClick={() => setSelectedColor(c)}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {!selectedVariant && (
+                  <p className="pp-variant-unavailable">That combination isn't available.</p>
+                )}
+              </div>
+            )}
+
             <div className="pp-qty-row">
-         
-              {qty === 0 ? (
-                    
+              {cartQtyForSelectedVariant === 0 ? (
                 <div>
-                  
                   <button
                     className="pp-btn pp-btn-secondary"
+                    disabled={!selectedVariant}
                     onClick={() => {
-                          if (outOfStockEffective) {
-                            setModalMsg("This product is out of stock.");
-                            return;
-                          }
-                          const desired = 1;
-                          if (hasStockCount && desired > maxStock) {
-                            setModalMsg(`Only ${maxStock} unit(s) of "${product.name}" are available.`);
-                            return;
-                          }
-                          addItem(product, 1);
-                          setQty(1);
+                      if (outOfStockEffective || !selectedVariant) {
+                        setModalMsg("This product is out of stock.");
+                        return;
+                      }
+                      const desired = 1;
+                      if (hasStockCount && desired > maxStock) {
+                        setModalMsg(`Only ${maxStock} unit(s) of "${product.name}" are available.`);
+                        return;
+                      }
+                      addItem(product, selectedVariant, 1);
                     }}
                   >
                     Add to Cart
@@ -289,32 +409,23 @@ export default function ProductPage() {
                 <div className="pp-qty-stepper">
                   <button
                     onClick={() => {
-                      const next = Math.max(0, qty - 1);
-                      setQty(next);
-                      const existing = items.find((i) => i.id === product?.id);
-                      // updateQty will remove the item if qty <= 0
-                      if (existing) updateQty(product.id, next);
+                      const next = Math.max(0, cartQtyForSelectedVariant - 1);
+                      updateQty(product.id, selectedVariant.id, next);
                     }}
                     aria-label="Decrease quantity"
                   >
                     −
                   </button>
-                  <span>{qty}</span>
+                  <span>{cartQtyForSelectedVariant}</span>
                   <button
                     onClick={() => {
-                      const nextRaw = qty + 1;
+                      const nextRaw = cartQtyForSelectedVariant + 1;
                       const next = hasStockCount ? Math.min(nextRaw, maxStock) : nextRaw;
-                      if (next === qty) {
+                      if (next === cartQtyForSelectedVariant) {
                         if (hasStockCount) setModalMsg(`Only ${maxStock} unit(s) of "${product.name}" are available.`);
-                        return; // already at max
+                        return;
                       }
-                      setQty(next);
-                      const existing = items.find((i) => i.id === product?.id);
-                      if (existing) {
-                        updateQty(product.id, next);
-                      } else {
-                        addItem(product, next);
-                      }
+                      updateQty(product.id, selectedVariant.id, next);
                     }}
                     aria-label="Increase quantity"
                   >
@@ -331,30 +442,13 @@ export default function ProductPage() {
 
               <NotifyModal message={modalMsg} onClose={() => setModalMsg("")} />
 
-              {qty > 0 && (
+              {cartQtyForSelectedVariant > 0 && (
                 <Link to="/cart" className="pp-btn pp-btn-secondary" style={{ marginLeft: 8 }}>
                   Go to cart ({Number(count || 0)})
                 </Link>
               )}
             </div>
 
-            {/* <div className="pp-policy-notice">
-              <span className="pp-policy-badge">Read the policy for return and refunds before placing the order</span>
-              <p>{RETURN_POLICY_SHORT} <a href="/returnPolicy">Read the full policy →</a></p>
-            </div> */}
-                   {/* <a className="wa-button wa-button-secondary"
-            href={buildWhatsAppLink(product)}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Ask about ${product.name ?? "this cover"} on WhatsApp`}
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
-              <path d="M12.004 2c-5.514 0-9.997 4.478-9.997 9.997 0 1.762.464 3.484 1.345 4.997L2 22l5.144-1.342a9.96 9.96 0 004.86 1.238h.004c5.514 0 9.997-4.478 9.997-9.997 0-2.671-1.04-5.182-2.927-7.07A9.935 9.935 0 0012.004 2zm0 18.153a8.13 8.13 0 01-4.144-1.134l-.297-.176-3.054.797.815-2.978-.193-.306a8.14 8.14 0 01-1.256-4.36c0-4.501 3.66-8.161 8.162-8.161 2.18 0 4.229.85 5.77 2.393a8.106 8.106 0 012.39 5.775c-.003 4.502-3.663 8.15-8.193 8.15z" />
-            </svg>
-            Ask on WhatsApp instead
-          </a> */}
-          
 <div className="live-preview-block">
   <div className="live-preview-icon">
     <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
@@ -367,7 +461,7 @@ export default function ProductPage() {
       Follow us on Instagram — we regularly post reels and photos of our products in real life.
     </p>
   </div>
-  
+
    <a href={"https://www.instagram.com/thecasewall?utm_source=qr&igsh=MWl3OHo5ajRuOGt1Mg%3D%3D"}
     target="_blank"
     rel="noopener noreferrer"
@@ -377,7 +471,7 @@ export default function ProductPage() {
     Visit Instagram →
   </a>
 </div>
-          
+
           <div className="trust-strip">
   <span>✅ Razorpay Verified Seller</span>
   <span>↩️ 2-Day Return & Exchange*</span>
@@ -387,11 +481,9 @@ export default function ProductPage() {
           </div>
         </div>
 
-      
+        <FAQSection />
 
-            <FAQSection  />
-
-              <div className="pp-reviews" id="reviews" style={{marginTop:150}}>
+        <div className="pp-reviews" id="reviews" style={{ marginTop: 150 }}>
           <div className="pp-reviews-header">
             <h2 className="pp-reviews-title">
               Customer Reviews
@@ -444,7 +536,6 @@ export default function ProductPage() {
                   inputMode="tel"
                   value={reviewPhone}
                   onChange={(e) => {
-                    // allow only digits, "+", spaces, dashes, parentheses
                     const cleaned = e.target.value.replace(/[^0-9+\-\s()]/g, "");
                     setReviewPhone(cleaned);
                   }}

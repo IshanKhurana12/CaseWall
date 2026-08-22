@@ -10,6 +10,14 @@ import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import Footer from "./Footer";
 
+// A product's list of filterable models: the denormalized `models` array
+// for variant products, or a single-item list from the legacy `model`
+// field for old flat products. Keeps CasesPage's filter working for both.
+function modelsForProduct(p) {
+  if (Array.isArray(p.models) && p.models.length > 0) return p.models;
+  return p.model ? [p.model] : [];
+}
+
 export default function CasesPage() {
   const [products, setProducts] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | ready | error | empty
@@ -41,17 +49,21 @@ export default function CasesPage() {
   }, []);
 
   const models = useMemo(() => {
-    const set = new Set(products.map((p) => p.model).filter(Boolean));
+    const set = new Set();
+    for (const p of products) {
+      for (const m of modelsForProduct(p)) set.add(m);
+    }
     return ["Filter Models", ...Array.from(set).sort()];
   }, [products]);
 
   const visible = useMemo(() => {
     return products.filter((p) => {
       const matchesModel =
-        !showModelFilter || activeModel === "Filter Models" || p.model === activeModel;
+        !showModelFilter || activeModel === "Filter Models" || modelsForProduct(p).includes(activeModel);
+      const searchableModels = modelsForProduct(p).join(" ");
       const matchesSearch =
         !search.trim() ||
-        `${p.name ?? ""} ${p.model ?? ""}`.toLowerCase().includes(search.trim().toLowerCase());
+        `${p.name ?? ""} ${searchableModels}`.toLowerCase().includes(search.trim().toLowerCase());
 
       let matchesCategory = true;
       if (categoryFilter === "cases") {

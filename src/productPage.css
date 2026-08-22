@@ -647,3 +647,15 @@
     text-align: center;
   }
 }
+
+
+.pp-variant-picker { margin: 16px 0; }
+.pp-variant-group { margin-bottom: 12px; }
+.pp-variant-label { font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #555; }
+.pp-variant-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.pp-variant-chip {
+  padding: 6px 14px; border: 1px solid #ccc; border-radius: 20px;
+  background: #fff; cursor: pointer; font-size: 14px;
+}
+.pp-variant-chip-active { border-color: #000; background: #000; color: #fff; }
+.pp-variant-unavailable { color: #c0392b; font-size: 13px; margin-top: 4px; }

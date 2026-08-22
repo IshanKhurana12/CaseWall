@@ -123,49 +123,75 @@ export default function ProductCard({ product }) {
   const { addItem, items, updateQty } = useCart();
   const [added, setAdded] = useState(false);
   const [modalMsg, setModalMsg] = useState("");
-  const price = formatPrice(product.price, product.currency);
-  const mrp = formatPrice(product.mrp, product.currency);
-  const outOfStock = product.inStock === false;
-  const hasStockCount = typeof product.stock === "number";
+
+  // Products with variants don't carry a reliable top-level price/stock —
+  // that lives per-variant. Card shows "From ₹X" and sends the shopper to
+  // the product page to pick model/color instead of guessing a variant here.
+  const hasVariants = product.hasVariants === true;
+
+  const displayPriceValue = hasVariants ? product.priceFrom : product.price;
+  const price = formatPrice(displayPriceValue, product.currency);
+  const mrp = !hasVariants ? formatPrice(product.mrp, product.currency) : null;
+
+  const outOfStock = !hasVariants && product.inStock === false;
+  const hasStockCount = !hasVariants && typeof product.stock === "number";
   const maxStock = hasStockCount ? Math.max(0, Number(product.stock)) : Infinity;
+
+  // Legacy cart item for this product (variantId "_legacy"). Only meaningful
+  // for non-variant products — variant products always route through the
+  // product page, so there's no single cart line to show a stepper for here.
+  const existing = !hasVariants
+    ? items.find((i) => i.productId === product.id && i.variantId === "_legacy")
+    : null;
+  const existingQty = existing ? existing.qty : 0;
+
+  function goToProduct() {
+    navigate(`/product/${product.id}`);
+  }
 
   function handleAddToCart(e) {
     e.preventDefault && e.preventDefault();
+    if (hasVariants) return goToProduct();
     if (outOfStock || (hasStockCount && maxStock <= 0)) {
       setModalMsg("This product is out of stock.");
       return;
     }
-    const existing = items.find((i) => i.id === product.id);
-    const existingQty = existing ? existing.qty : 0;
     if (hasStockCount && existingQty + 1 > maxStock) {
       setModalMsg(`Only ${maxStock} unit(s) of "${product.name}" are available.`);
       return;
     }
-    addItem(product, 1);
+    addItem(
+      product,
+      { id: "_legacy", model: product.model || null, color: null, price: product.price, imageUrls: product.imageUrls },
+      1
+    );
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
   }
 
   function handleBuyNow(e) {
     e.preventDefault && e.preventDefault();
-    const existing = items.find((i) => i.id === product.id);
+    if (hasVariants) return goToProduct();
     if (!existing) {
       if (outOfStock || (hasStockCount && maxStock <= 0)) {
         setModalMsg("This product is out of stock.");
         return;
       }
-      const existingQty = 0;
-      if (hasStockCount && existingQty + 1 > maxStock) {
+      if (hasStockCount && 1 > maxStock) {
         setModalMsg(`Only ${maxStock} unit(s) of "${product.name}" are available.`);
         return;
       }
-      addItem(product, 1);
+      addItem(
+        product,
+        { id: "_legacy", model: product.model || null, color: null, price: product.price, imageUrls: product.imageUrls },
+        1
+      );
     }
     navigate("/cart");
   }
 
   const discountPercent =
-    product.mrp && product.price && Number(product.mrp) > Number(product.price)
+    !hasVariants && product.mrp && product.price && Number(product.mrp) > Number(product.price)
       ? Math.round(((Number(product.mrp) - Number(product.price)) / Number(product.mrp)) * 100)
       : null;
 
@@ -332,24 +358,26 @@ export default function ProductCard({ product }) {
 
         <div className="card-footer">
           <div className="card-price-group">
-            {price && <span className="card-price">{price}</span>}
+            {price && <span className="card-price">{hasVariants ? `From ${price}` : price}</span>}
             {mrp && <span className="card-mrp">{mrp}</span>}
           </div>
 
           {!outOfStock && (
             <div className="card-cta-row">
-              {(() => {
-                const existing = items.find((i) => i.id === product.id);
-                const existingQty = existing ? existing.qty : 0;
-                if (existingQty > 0) {
-                  return (
+              {hasVariants ? (
+                <button className="buy-button" onClick={goToProduct} aria-label={`Choose options for ${product.name ?? "this cover"}`}>
+                  Choose Options
+                </button>
+              ) : (
+                <>
+                  {existingQty > 0 ? (
                     <div className="card-stepper">
                       <button
                         className="stepper-decrease"
                         onClick={(e) => {
                           e.stopPropagation();
                           const next = Math.max(0, existingQty - 1);
-                          updateQty(product.id, next);
+                          updateQty(product.id, "_legacy", next);
                         }}
                         aria-label={`Decrease ${product.name ?? "this cover"} quantity`}
                       >
@@ -366,40 +394,26 @@ export default function ProductCard({ product }) {
                             if (hasStockCount) setModalMsg(`Only ${maxStock} unit(s) of "${product.name}" are available.`);
                             return;
                           }
-                          updateQty(product.id, next);
+                          updateQty(product.id, "_legacy", next);
                         }}
                         aria-label={`Increase ${product.name ?? "this cover"} quantity`}
                       >
                         +
                       </button>
                     </div>
-                  );
-                }
-                return (
-                  <button className="cart-button" onClick={handleAddToCart} aria-label={`Add ${product.name ?? "this cover"} to cart`}>
-                    {added ? "Added ✓" : "Add to Cart"}
-                  </button>
-                );
-              })()}
+                  ) : (
+                    <button className="cart-button" onClick={handleAddToCart} aria-label={`Add ${product.name ?? "this cover"} to cart`}>
+                      {added ? "Added ✓" : "Add to Cart"}
+                    </button>
+                  )}
 
-              <button className="buy-button" onClick={handleBuyNow} aria-label={`Buy ${product.name ?? "this cover"} now`}>
-                Buy Now
-              </button>
+                  <button className="buy-button" onClick={handleBuyNow} aria-label={`Buy ${product.name ?? "this cover"} now`}>
+                    Buy Now
+                  </button>
+                </>
+              )}
             </div>
           )}
-
-          {/* <a className="wa-button wa-button-secondary"
-            href={buildWhatsAppLink(product)}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Ask about ${product.name ?? "this cover"} on WhatsApp`}
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
-              <path d="M12.004 2c-5.514 0-9.997 4.478-9.997 9.997 0 1.762.464 3.484 1.345 4.997L2 22l5.144-1.342a9.96 9.96 0 004.86 1.238h.004c5.514 0 9.997-4.478 9.997-9.997 0-2.671-1.04-5.182-2.927-7.07A9.935 9.935 0 0012.004 2zm0 18.153a8.13 8.13 0 01-4.144-1.134l-.297-.176-3.054.797.815-2.978-.193-.306a8.14 8.14 0 01-1.256-4.36c0-4.501 3.66-8.161 8.162-8.161 2.18 0 4.229.85 5.77 2.393a8.106 8.106 0 012.39 5.775c-.003 4.502-3.663 8.15-8.193 8.15z" />
-            </svg>
-            Ask on WhatsApp instead
-          </a> */}
         </div>
       </div>
       <NotifyModal message={modalMsg} onClose={() => setModalMsg("")} />

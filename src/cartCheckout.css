@@ -4,6 +4,17 @@
   padding: 32px 24px 80px;
 }
 
+.back-link {
+  display: inline-block;
+  margin-left: 20px;
+  margin-top:50px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--slate);
+  text-decoration: none;
+  margin-bottom: 20px;
+}
+
 .cc-title {
   font-family: var(--font-display);
   font-weight: 700;
