@@ -30,11 +30,11 @@ export async function sendOrderConfirmationEmail(order, orderId) {
 
   const subject = `Your ${process.env.STORE_NAME || "Order"} is confirmed — ${orderId}`;
   const orderUrl = (process.env.SITE_ORIGIN || "") + `/order/${encodeURIComponent(orderId)}`;
-  const text = `Hi ${name},\n\nThank you — your order ${orderId} has been confirmed. You can check the status at ${orderUrl}\n\nAmount: ₹${(Number(order.amount)||0)/100}\n\nIf you have questions, reply to this email or message us on WhatsApp.\n\nThanks!`;
+  const text = `Hi ${name},\n\nThank you — your order ${orderId} has been confirmed. You can check the status at ${orderUrl}\n\nAmount: ₹${(Number(order.amount)||0)}\n\nIf you have questions, reply to this email or message us on WhatsApp.\n\nThanks!`;
 
   const html = `<p>Hi ${name},</p>
     <p>Thank you — your order <strong>${orderId}</strong> has been confirmed.</p>
-    <p>Amount: <strong>₹${(Number(order.amount)||0)/100}</strong></p>
+    <p>Amount: <strong>₹${(Number(order.amount)||0)}</strong></p>
     <p>You can check the status of your order <a href="${orderUrl}">here</a>.</p>
     <p>Thanks,<br/>${process.env.STORE_NAME || "Store"}</p>`;
 
