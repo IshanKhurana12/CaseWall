@@ -84,11 +84,11 @@ export default async function handler(req, res) {
     const { resolvedItems, itemsAmountPaise, shippingPaise, totalAmountPaise } = await db.runTransaction(async (tx) => {
       let itemsAmountRupees = 0;
       const resolved = [];
-      const stockUpdates = [];
+      // key = variantRef.path → { variantRef, currentReserved, reserveQty }
+      const stockUpdates = new Map();
 
       // PASS 1: all reads. Firestore transactions require every tx.get()
-      // to happen before any tx.set()/tx.update() — so we can't decrement
-      // stock for item N before reading item N+1.
+      // to happen before any tx.set()/tx.update().
       for (const it of requested) {
         const productRef = db.collection("products").doc(it.productId);
         const { product, variantRef, variant } = await resolveVariant(tx, db, productRef, it.variantId);
@@ -103,12 +103,25 @@ export default async function handler(req, res) {
           : product.name;
 
         if (typeof variant.stock !== "number") throw new Error(`"${label}" has no stock configured.`);
-        const reservedStock = variant.reservedStock || 0;
-        const available = variant.stock - reservedStock;
+
+        const key = variantRef.path;
+        const already = stockUpdates.get(key);
+        const currentReserved = already ? already.currentReserved : (variant.reservedStock || 0);
+        const pendingReserve = already ? already.reserveQty : 0;
+        const available = variant.stock - currentReserved - pendingReserve;
+
         if (available <= 0) throw new Error(`"${label}" is out of stock.`);
         if (it.qty > available) throw new Error(`Only ${available} unit(s) of "${label}" are available.`);
 
-        stockUpdates.push({ variantRef, reserveQty: it.qty });
+        if (already) {
+          already.reserveQty += it.qty;
+        } else {
+          stockUpdates.set(key, {
+            variantRef,
+            currentReserved,
+            reserveQty: it.qty,
+          });
+        }
 
         itemsAmountRupees += price * it.qty;
         const resolvedItem = {
@@ -130,14 +143,12 @@ export default async function handler(req, res) {
 
       if (resolved.length === 0) throw new Error("No valid items in cart.");
 
-      // PASS 2: all writes. Safe now — every read above has completed.
+      // PASS 2: all writes. No further reads allowed.
       // Holds stock via reservedStock instead of decrementing stock directly,
       // so `stock` only drops on confirmed payment and an expiry/cancel just
       // undoes the hold rather than needing to "add back" a possibly-stale number.
-      for (const { variantRef, reserveQty } of stockUpdates) {
-        const snap = await tx.get(variantRef); // cheap re-read, already cached by the transaction
-        const current = snap.data();
-        tx.update(variantRef, { reservedStock: (current.reservedStock || 0) + reserveQty });
+      for (const { variantRef, currentReserved, reserveQty } of stockUpdates.values()) {
+        tx.update(variantRef, { reservedStock: currentReserved + reserveQty });
       }
 
       const SHIPPING_RATE_RUPEES = Number(process.env.SHIPPING_RATE_RUPEES || 80);
@@ -180,7 +191,12 @@ export default async function handler(req, res) {
         createdAt: new Date().toISOString(),
       });
 
-      return { resolvedItems: resolved, itemsAmountPaise: itemsAmountPaiseLocal, shippingPaise: shippingPaiseLocal, totalAmountPaise: totalPaiseLocal };
+      return {
+        resolvedItems: resolved,
+        itemsAmountPaise: itemsAmountPaiseLocal,
+        shippingPaise: shippingPaiseLocal,
+        totalAmountPaise: totalPaiseLocal,
+      };
     });
 
     // Create Razorpay order; if it fails, restore stock and cancel
