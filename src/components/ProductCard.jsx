@@ -349,7 +349,8 @@ export default function ProductCard({ product }) {
       </div>
 
       <div className="card-body">
-        {product.model && <p className="card-model">{product.model}</p>}
+        {!hasVariants ?  product.model && <p className="card-model">{product.model}</p> :   product.model && <p className="card-model">Choose from Models</p> }
+      
         <Link to={`/product/${product.id}`} className="card-name-link">
           <h3 className="card-name">{product.name ?? "Untitled cover"}</h3>
         </Link>
