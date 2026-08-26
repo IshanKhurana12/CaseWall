@@ -336,7 +336,21 @@ export default function ProductPage() {
               {mrp && <span className="card-mrp">{mrp}</span>}
             </div>
 
-            {product.description && <p className="pp-desc">{product.description}</p>}
+            {/* {product.description && <p className="pp-desc">{product.description}</p>} */}
+
+            {product.description && (
+  <div className="pp-desc">
+    {product.description
+      .split(".")
+      .map((sentence) => sentence.trim())
+      .filter(Boolean)
+      .map((sentence, i) => (
+        <p key={i} className="pp-desc-line">
+          {sentence}.
+        </p>
+      ))}
+  </div>
+)}
 
             {/* --- variant picker: only rendered for products that actually have variants --- */}
             {product.hasVariants && (

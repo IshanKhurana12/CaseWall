@@ -10,12 +10,31 @@ import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import Footer from "./Footer";
 
+// Normalizes casing/whitespace so "Iphone 15 Pro" and "iPhone 15 Pro"
+// are treated as the same model everywhere (dropdown + filtering).
+// If your DB has other inconsistent naming (extra spaces, "Iphone" vs
+// "iPhone" vs "IPHONE"), this is the single place to patch it.
+function canonicalModelName(raw) {
+  if (!raw) return null;
+  const trimmed = raw.trim().replace(/\s+/g, " ");
+  // Force a consistent "iPhone" casing regardless of how it was typed/saved
+  return trimmed.replace(/^iphone/i, "iPhone");
+}
+
 // A product's list of filterable models: the denormalized `models` array
 // for variant products, or a single-item list from the legacy `model`
 // field for old flat products. Keeps CasesPage's filter working for both.
+// Every model name is run through canonicalModelName so inconsistent
+// casing in Firestore (e.g. "Iphone 15" vs "iPhone 15") doesn't create
+// duplicate dropdown entries or cause products to be filtered out.
 function modelsForProduct(p) {
-  if (Array.isArray(p.models) && p.models.length > 0) return p.models;
-  return p.model ? [p.model] : [];
+  const raw =
+    Array.isArray(p.models) && p.models.length > 0
+      ? p.models
+      : p.model
+      ? [p.model]
+      : [];
+  return raw.map(canonicalModelName).filter(Boolean);
 }
 
 export default function CasesPage() {

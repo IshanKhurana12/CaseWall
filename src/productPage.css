@@ -4,6 +4,19 @@
   padding: 32px 24px 80px;
 }
 
+.pp-desc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px; /* consistent spacing between sentences */
+}
+
+.pp-desc-line {
+  margin: 0;
+  line-height: 1.5;
+  color: #4a4a4a; /* tweak to match your theme */
+  font-size: 0.95rem;
+}
+
 .pp-back-link {
   display: inline-block;
   font-family: var(--font-mono);
