@@ -10,6 +10,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import Footer from "./Footer";
 
+const PAGE_SIZE = 8;
+
 // Normalizes casing/whitespace so "Iphone 15 Pro" and "iPhone 15 Pro"
 // are treated as the same model everywhere (dropdown + filtering).
 // If your DB has other inconsistent naming (extra spaces, "Iphone" vs
@@ -43,6 +45,7 @@ export default function CasesPage() {
   const [activeModel, setActiveModel] = useState("Filter Models");
   const [search, setSearch] = useState("");
   const [view, setView] = useState("cases"); // "cases" | "jewelry"
+  const [page, setPage] = useState(1);
 
   // "cases" (default) -> only isJewellery !== true
   // "jewellery"        -> only isJewellery === true
@@ -95,6 +98,23 @@ export default function CasesPage() {
     });
   }, [products, activeModel, search, categoryFilter, showModelFilter]);
 
+  // Reset to page 1 whenever the active filters/search change the result set
+  useEffect(() => {
+    setPage(1);
+  }, [activeModel, search, categoryFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+
+  // Clamp page if it's now out of range (e.g. products array shrank)
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const paginated = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return visible.slice(start, start + PAGE_SIZE);
+  }, [visible, page]);
+
   const navigate = useNavigate();
   const { count } = useCart();
   const helpLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi! I have a question about a product or my order.")}`;
@@ -110,6 +130,35 @@ export default function CasesPage() {
       setActiveModel("Filter Models");
     }
   };
+
+  // Builds a compact page list like [1, 2, 3, '…', 9, 10] instead of
+  // rendering every page number when there are many pages.
+  function getPageNumbers(current, total) {
+    const delta = 1;
+    const range = [];
+    const rangeWithDots = [];
+    let last;
+
+    for (let i = 1; i <= total; i++) {
+      if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
+        range.push(i);
+      }
+    }
+
+    for (const i of range) {
+      if (last) {
+        if (i - last === 2) {
+          rangeWithDots.push(last + 1);
+        } else if (i - last > 2) {
+          rangeWithDots.push("…");
+        }
+      }
+      rangeWithDots.push(i);
+      last = i;
+    }
+
+    return rangeWithDots;
+  }
 
   return (
     <div className="page">
@@ -220,7 +269,49 @@ export default function CasesPage() {
           </div>
         )}
 
-        {status === "ready" && visible.length > 0 && <ProductGrid products={visible} />}
+        {status === "ready" && visible.length > 0 && (
+          <>
+            <ProductGrid products={paginated} />
+
+            {totalPages > 1 && (
+              <nav className="pagination" aria-label="Pagination">
+           <button
+  className="page-btn page-btn-nav"
+  onClick={() => setPage((p) => Math.max(1, p - 1))}
+  disabled={page === 1}
+  aria-label="Previous page"
+>
+  ‹ Prev
+</button>
+
+                {getPageNumbers(page, totalPages).map((p, i) =>
+                  p === "…" ? (
+                    <span key={`dots-${i}`} className="page-ellipsis">
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={p}
+                      className={"page-btn" + (p === page ? " page-btn-active" : "")}
+                      onClick={() => setPage(p)}
+                      aria-current={p === page ? "page" : undefined}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+<button
+  className="page-btn page-btn-nav"
+  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+  disabled={page === totalPages}
+  aria-label="Next page"
+>
+  Next ›
+</button>
+              </nav>
+            )}
+          </>
+        )}
       </main>
 
       <Footer />

@@ -1278,3 +1278,61 @@ body {
   outline: 2px solid var(--signal);
   outline-offset: 2px;
 }
+
+
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 32px 0 16px;
+  flex-wrap: wrap;
+}
+
+.page-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #bbb;
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-btn-active {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.page-btn-active:hover {
+  background: #111;
+}
+
+.page-ellipsis {
+  padding: 0 4px;
+  color: #999;
+  user-select: none;
+}
+.page-btn-nav {
+  min-width: 72px;
+  font-weight: 600;
+}
