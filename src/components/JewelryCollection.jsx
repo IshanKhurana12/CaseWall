@@ -6,7 +6,7 @@ import "../App.css";
 import "../jwelleryStyles.css";
 import { useNavigate } from "react-router-dom";
 // ---- Config -----------------------------------------------------------
-const WHATSAPP_NUMBER = "919990111311"; // replace with the real number
+const WHATSAPP_NUMBER = "919871335748"; // replace with the real number
 
 // Firestore collection this view reads from. Kept separate from "products"
 // (the phone case collection) so the two catalogs never mix.

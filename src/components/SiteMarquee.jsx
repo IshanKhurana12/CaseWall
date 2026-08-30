@@ -4,22 +4,22 @@ export default function SiteMarquee() {
       <div className="site-marquee-inner">
         <div className="site-marquee-track">
           <span className="site-marquee-text">
-            NOTICE: Free Delivery on all orders above ₹469.
+            NOTICE: Free Delivery on all orders above ₹350.
           </span>
           <span className="site-marquee-text" aria-hidden>
-             Free Delivery on all orders above ₹469.
+             Free Delivery on all orders above ₹350.
           </span>
             <span className="site-marquee-text" aria-hidden>
-             Free Delivery on all orders above ₹469.
+             Free Delivery on all orders above ₹350.
           </span>
            <span className="site-marquee-text" aria-hidden>
-             Free Delivery on all orders above ₹469.
+             Free Delivery on all orders above ₹350.
           </span>
            <span className="site-marquee-text" aria-hidden>
-            Free Delivery on all orders above ₹469.
+            Free Delivery on all orders above ₹350.
           </span>
            <span className="site-marquee-text" aria-hidden>
-            Free Delivery on all orders above ₹469.
+            Free Delivery on all orders above ₹350.
           </span>
         </div>
       </div>

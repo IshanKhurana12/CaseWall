@@ -1,7 +1,7 @@
 import "../policy.css";
 import Footer from "./Footer";
 
-const WHATSAPP_NUMBER = "919990111311"; // 9990111311 with country code
+const WHATSAPP_NUMBER = "919871335748"; // 9871335748 with country code
 const CALL_NUMBER = "9871335748";
 
 export default function ReturnPolicy() {
