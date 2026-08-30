@@ -28,10 +28,10 @@ export const RETURN_POLICY_FULL = [
 
 // Shipping configuration (frontend reads VITE_... variables via import.meta.env)
 // Defaults: free for orders >= 500, otherwise flat 80 rupees
-const _shipRate = Number(import.meta.env.VITE_SHIPPING_RATE_RUPEES);
-const _shipThreshold = Number(import.meta.env.VITE_SHIPPING_FREE_THRESHOLD_RUPEES);
-export const SHIPPING_RATE_RUPEES = Number.isFinite(_shipRate) && _shipRate >= 0 ? _shipRate : 80;
-export const SHIPPING_FREE_THRESHOLD_RUPEES = Number.isFinite(_shipThreshold) && _shipThreshold >= 0 ? _shipThreshold : 500;
+const _shipRate = Number(import.meta.env.SHIPPING_RATE_RUPEES); // undefined, always
+const _shipThreshold = Number(import.meta.env.SHIPPING_FREE_THRESHOLD_RUPEES); // undefined, always
+export const SHIPPING_RATE_RUPEES = Number.isFinite(_shipRate) && _shipRate >= 0 ? _shipRate : 60;
+export const SHIPPING_FREE_THRESHOLD_RUPEES = Number.isFinite(_shipThreshold) && _shipThreshold >= 0 ? _shipThreshold : 350;
 
 // Frontend trigger for cleanup-reservations: minutes between automatic frontend-initiated runs
 // Set `VITE_CLEANUP_TRIGGER_INTERVAL_MINUTES` in your .env for development.
