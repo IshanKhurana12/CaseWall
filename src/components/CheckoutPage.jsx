@@ -32,7 +32,7 @@ export default function CheckoutPage() {
   const shippingRupees = subtotal >= SHIPPING_FREE_THRESHOLD_RUPEES ? 0 : SHIPPING_RATE_RUPEES;
   const totalRupees = subtotal + shippingRupees;
   const [form, setForm] = useState(EMPTY_FORM);
-  const [agreed, setAgreed] = useState(false);
+  const [agreed, setAgreed] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -253,15 +253,9 @@ export default function CheckoutPage() {
           </div>
 
           <div className="checkout-policy-check">
-            <input
-              type="checkbox"
-              id="agree"
-              checked={agreed}
-              onChange={(e) => setAgreed(e.target.checked)}
-            />
+          
             <label htmlFor="agree">
-              <span className="pp-policy-badge">Read the policy for return and refunds before placing the order</span>
-              <p> <a href="/returnPolicy">Read the full policy →</a></p>
+              <p> <a href="/returnPolicy">Read the full return and replacement policy →</a></p>
             </label>
           </div>
 
