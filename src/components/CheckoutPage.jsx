@@ -26,11 +26,12 @@ function formatPrice(value) {
 }
 
 export default function CheckoutPage() {
-  const { items, subtotal, clearCart } = useCart();
+  const { items, subtotal, clearCart, couponCode, couponDiscount } = useCart();
   const navigate = useNavigate();
+  const discountedSubtotal = Math.max(0, subtotal - (Number(couponDiscount) || 0));
   // Shipping uses site-wide configurable constants
-  const shippingRupees = subtotal >= SHIPPING_FREE_THRESHOLD_RUPEES ? 0 : SHIPPING_RATE_RUPEES;
-  const totalRupees = subtotal + shippingRupees;
+  const shippingRupees = discountedSubtotal >= SHIPPING_FREE_THRESHOLD_RUPEES ? 0 : SHIPPING_RATE_RUPEES;
+  const totalRupees = discountedSubtotal + shippingRupees;
   const [form, setForm] = useState(EMPTY_FORM);
   const [agreed, setAgreed] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -82,6 +83,7 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items: items.map((i) => ({ productId: i.productId, variantId: i.variantId, qty: i.qty })),
+          couponCode: couponCode || "",
           contact: { name: form.name.trim(), phone: form.phone.trim(), email: form.email.trim() },
           address: {
             line1: form.line1.trim(),
@@ -199,6 +201,12 @@ export default function CheckoutPage() {
               <span>{formatPrice((Number(i.price) || 0) * i.qty)}</span>
             </div>
           ))}
+          {couponCode && (
+            <div className="checkout-summary-line" style={{ color: "var(--grip)" }}>
+              <span>Coupon {couponCode}</span>
+              <span>−{formatPrice(couponDiscount)}</span>
+            </div>
+          )}
           <div className="checkout-summary-line" style={{ borderTop: "1.5px solid var(--line)", marginTop: 8, paddingTop: 10, fontWeight: 700 }}>
             <span>Subtotal</span>
             <span>{formatPrice(subtotal)}</span>

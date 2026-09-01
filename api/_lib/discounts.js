@@ -1,0 +1,141 @@
+export function normalizeCategoryValue(raw) {
+  if (raw === null || raw === undefined) return "";
+  const value = String(raw).trim();
+  if (!value) return "";
+  return value.toLowerCase();
+}
+
+export function getProductCategoryValues(product = {}) {
+  const values = [];
+
+  if (Array.isArray(product.categories)) {
+    for (const item of product.categories) {
+      const normalized = normalizeCategoryValue(item);
+      if (normalized) values.push(normalized);
+    }
+  }
+
+  const fallback = normalizeCategoryValue(product.category ?? product.cat);
+  if (fallback) values.push(fallback);
+
+  return [...new Set(values)];
+}
+
+export function getDiscountForCart({ items = [], products = [], discount = null }) {
+  if (!discount) {
+    return { valid: false, reason: "Coupon was not found." };
+  }
+
+  if (discount.active === false) {
+    return { valid: false, reason: "This coupon is no longer active." };
+  }
+
+  const code = String(discount.code || "").trim().toUpperCase();
+  const category = normalizeCategoryValue(
+    discount.category || discount.productCategory || discount.matchCategory || discount.ruleCategory || ""
+  );
+  const rawBuyQty = Number(discount.buyQty ?? discount.qty ?? discount.minQty ?? discount.requiredQty ?? 1);
+  const rawBundlePrice = Number(
+    discount.bundlePrice ?? discount.price ?? discount.discountPrice ?? discount.specialPrice ?? discount.offerPrice ?? 0
+  );
+  const discountType = String(discount.type || discount.discountType || "").toLowerCase();
+  const fixedAmount = Number(
+    discount.discountAmount ?? discount.fixedAmount ?? discount.amount ?? discount.flatDiscount ?? 0
+  );
+  const minOrderValue = Number(discount.minOrderValue ?? discount.minimumOrderValue ?? discount.minValue ?? 0);
+
+  const textRule = String(discount.title || discount.label || discount.name || discount.description || "");
+  const textBuyMatch = textRule.match(/buy\s*(\d+)/i);
+  const textPriceMatch = textRule.match(/for\s*₹?\s*(\d+)/i);
+
+  const buyQty = Number.isFinite(rawBuyQty) && rawBuyQty > 0 ? rawBuyQty : Number(textBuyMatch?.[1] || 1);
+  const bundlePrice = Number.isFinite(rawBundlePrice) && rawBundlePrice > 0 ? rawBundlePrice : Number(textPriceMatch?.[1] || 0);
+  const productMap = new Map(products.map((product) => [String(product.id), product]));
+
+  let totalMatchedQty = 0;
+  let eligibleSubtotal = 0;
+
+  for (const item of items) {
+    const qty = Number(item.qty || 1);
+    const product = productMap.get(String(item.productId));
+    const productCategories =
+      Array.isArray(item.categories) && item.categories.length
+        ? item.categories.map(normalizeCategoryValue).filter(Boolean)
+        : getProductCategoryValues(product || {});
+    const matchesCategory = !category || productCategories.some((value) => value === category);
+
+    if (!matchesCategory) continue;
+
+    const price = Number(item.price) || Number(product?.price) || 0;
+    totalMatchedQty += qty;
+    eligibleSubtotal += price * qty;
+  }
+
+  const isFixedDiscount =
+    discountType === "fixed" ||
+    discountType === "flat" ||
+    discountType === "amount" ||
+    (discount.discountAmount != null || discount.fixedAmount != null || discount.amount != null || discount.flatDiscount != null);
+
+  if (isFixedDiscount) {
+    if (!Number.isFinite(fixedAmount) || fixedAmount <= 0) {
+      return { valid: false, reason: "This coupon is misconfigured." };
+    }
+
+    if (minOrderValue > 0 && eligibleSubtotal < minOrderValue) {
+      return {
+        valid: false,
+        reason: discount.message || `Spend at least ₹${minOrderValue} to use ${code}.`,
+        requiredOrderValue: minOrderValue,
+        eligibleSubtotal,
+      };
+    }
+
+    const discountAmount = Math.min(fixedAmount, eligibleSubtotal);
+    return {
+      valid: true,
+      code,
+      label: discount.label || discount.title || code,
+      reason: discount.message || `Applied ${code}.`,
+      totalMatchedQty,
+      discountAmount,
+      requiredQty: 1,
+    };
+  }
+
+  if (!buyQty || buyQty <= 0) {
+    return { valid: false, reason: "This coupon is misconfigured." };
+  }
+
+  if (totalMatchedQty < buyQty) {
+    return {
+      valid: false,
+      reason: discount.message || `Add ${buyQty} matching item(s) to use ${code}.`,
+      requiredQty: buyQty,
+      totalMatchedQty,
+    };
+  }
+
+  const bundleCount = Math.floor(totalMatchedQty / buyQty);
+  if (bundleCount < 1) {
+    return {
+      valid: false,
+      reason: discount.message || `Add ${buyQty} matching item(s) to use ${code}.`,
+      requiredQty: buyQty,
+      totalMatchedQty,
+    };
+  }
+
+  const discountAmount = Math.max(0, eligibleSubtotal - bundlePrice * bundleCount);
+
+  return {
+    valid: true,
+    code,
+    label: discount.label || discount.title || code,
+    reason: `Applied ${code}.`,
+    totalMatchedQty,
+    discountAmount,
+    bundleCount,
+    requiredQty: buyQty,
+  };
+}

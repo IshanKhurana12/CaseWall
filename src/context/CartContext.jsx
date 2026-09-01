@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 const CartContext = createContext(null);
 const STORAGE_KEY = "casewall_cart_v2"; // bumped: v1 items lack variantId and would be stale
+const COUPON_KEY = "casewall_coupon_v1";
 
 function loadCart() {
   try {
@@ -14,6 +15,20 @@ function loadCart() {
   }
 }
 
+function loadCoupon() {
+  try {
+    const raw = localStorage.getItem(COUPON_KEY);
+    if (!raw) return { code: "", discount: 0 };
+    const parsed = JSON.parse(raw);
+    return {
+      code: typeof parsed.code === "string" ? parsed.code : "",
+      discount: Number(parsed.discount) || 0,
+    };
+  } catch {
+    return { code: "", discount: 0 };
+  }
+}
+
 function cartKey(productId, variantId) {
   return `${productId}::${variantId || "_legacy"}`;
 }
@@ -23,6 +38,7 @@ function cartKey(productId, variantId) {
 // is created — the cart/localStorage is never trusted for the amount charged.
 export function CartProvider({ children }) {
   const [items, setItems] = useState(loadCart);
+  const [coupon, setCoupon] = useState(loadCoupon);
 
   useEffect(() => {
     try {
@@ -31,6 +47,14 @@ export function CartProvider({ children }) {
       // storage may be unavailable (private browsing etc.) — fail silently
     }
   }, [items]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COUPON_KEY, JSON.stringify(coupon));
+    } catch {
+      // storage may be unavailable (private browsing etc.) — fail silently
+    }
+  }, [coupon]);
 
   // `product` = the parent product doc ({ id, name, currency, ... })
   // `variant` = the specific variant ({ id, model, color, price, stock, imageUrls, ... })
@@ -77,6 +101,18 @@ export function CartProvider({ children }) {
 
   function clearCart() {
     setItems([]);
+    setCoupon({ code: "", discount: 0 });
+  }
+
+  function setCouponCode(code, discount = 0) {
+    setCoupon({
+      code: String(code || "").trim(),
+      discount: Number(discount) || 0,
+    });
+  }
+
+  function clearCoupon() {
+    setCoupon({ code: "", discount: 0 });
   }
 
   const count = useMemo(() => items.reduce((sum, i) => sum + i.qty, 0), [items]);
@@ -85,7 +121,19 @@ export function CartProvider({ children }) {
     [items]
   );
 
-  const value = { items, addItem, removeItem, updateQty, clearCart, count, subtotal };
+  const value = {
+    items,
+    addItem,
+    removeItem,
+    updateQty,
+    clearCart,
+    clearCoupon,
+    setCouponCode,
+    count,
+    subtotal,
+    couponCode: coupon.code,
+    couponDiscount: coupon.discount,
+  };
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 

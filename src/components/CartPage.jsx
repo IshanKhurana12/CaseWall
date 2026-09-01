@@ -21,12 +21,58 @@ function formatPrice(value, currency = "INR") {
 }
 
 export default function CartPage() {
-  const { items, updateQty, removeItem, subtotal } = useCart();
+  const { items, updateQty, removeItem, subtotal, couponCode, couponDiscount, setCouponCode, clearCoupon } = useCart();
   const navigate = useNavigate();
   const [modalMsg, setModalMsg] = React.useState("");
+  const [couponInput, setCouponInput] = React.useState(couponCode || "");
+  const [couponError, setCouponError] = React.useState("");
+  const [couponLoading, setCouponLoading] = React.useState(false);
+  const [couponSuccess, setCouponSuccess] = React.useState("");
   // Shipping uses site-wide configurable constants
   const shippingRupees = subtotal >= SHIPPING_FREE_THRESHOLD_RUPEES ? 0 : SHIPPING_RATE_RUPEES;
-  const totalRupees = subtotal + shippingRupees;
+  const discountedSubtotal = Math.max(0, subtotal - (Number(couponDiscount) || 0));
+  const totalRupees = discountedSubtotal + shippingRupees;
+
+  React.useEffect(() => {
+    setCouponInput(couponCode || "");
+  }, [couponCode]);
+
+  async function applyCoupon() {
+    const raw = couponInput.trim();
+    if (!raw) {
+      setCouponError("Please enter a coupon code.");
+      setCouponSuccess("");
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError("");
+    setCouponSuccess("");
+
+    try {
+      const response = await fetch("/api/validate-discount", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          couponCode: raw,
+          items: items.map((item) => ({ productId: item.productId, variantId: item.variantId, qty: item.qty, price: item.price })),
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        clearCoupon();
+        throw new Error(payload.error || "This coupon is invalid.");
+      }
+
+      setCouponCode(payload.code, payload.discountAmount || 0);
+      setCouponSuccess(payload.message || `${payload.code} applied successfully.`);
+    } catch (err) {
+      setCouponError(err.message || "Coupon could not be applied.");
+    } finally {
+      setCouponLoading(false);
+    }
+  }
 
   // Re-checks live stock before bumping qty up. Reads from the variant doc
   // if this item has a real variantId, otherwise falls back to the product
@@ -128,6 +174,12 @@ export default function CartPage() {
             </div>
 
             <div className="cart-summary">
+              {couponCode && (
+                <div className="cart-summary-row" style={{ color: "var(--grip)", marginBottom: 6 }}>
+                  <span>Coupon {couponCode}</span>
+                  <span className="cart-summary-total">−{formatPrice(couponDiscount)}</span>
+                </div>
+              )}
               <div className="cart-summary-row">
                 <span>Subtotal</span>
                 <span className="cart-summary-total">{formatPrice(subtotal)}</span>
@@ -145,6 +197,28 @@ export default function CartPage() {
               <div className="cart-summary-row" style={{ fontWeight: 700, marginTop: 8 }}>
                 <span>Total</span>
                 <span className="cart-summary-total">{formatPrice(totalRupees)}</span>
+              </div>
+              <div className="coupon-box">
+                <label className="coupon-label" htmlFor="coupon-input">Coupon code</label>
+                <div className="coupon-row">
+                  <input
+                    id="coupon-input"
+                    className="coupon-input"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    placeholder="Enter code"
+                  />
+                  <button type="button" className="coupon-button" onClick={applyCoupon} disabled={couponLoading}>
+                    {couponLoading ? "Checking…" : couponCode ? "Update" : "Apply"}
+                  </button>
+                </div>
+                {couponError && <p className="checkout-error" style={{ marginTop: 8 }}>{couponError}</p>}
+                {couponSuccess && <p className="coupon-success" style={{ marginTop: 8 }}>{couponSuccess}</p>}
+                {couponCode && (
+                  <button type="button" className="coupon-remove" onClick={clearCoupon}>
+                    Remove coupon
+                  </button>
+                )}
               </div>
               <p className="cart-summary-note">{`Shipping is Free for Orders above ${SHIPPING_FREE_THRESHOLD_RUPEES}.`}</p>
 

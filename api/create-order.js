@@ -1,5 +1,6 @@
 import { getAdminDb } from "./_lib/firebaseAdmin.js";
 import { getRazorpay } from "./_lib/razorpay.js";
+import { getDiscountForCart } from "./_lib/discounts.js";
 
 const RESERVATION_MINUTES = 15;
 
@@ -39,7 +40,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { items, contact, address } = req.body || {};
+    const { items, contact, address, couponCode } = req.body || {};
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: "Cart is empty." });
@@ -58,6 +59,20 @@ export default async function handler(req, res) {
     }
 
     const db = getAdminDb();
+    let activeDiscount = null;
+    let discountAmount = 0;
+
+    if (typeof couponCode === "string" && couponCode.trim()) {
+      const normalizedCode = couponCode.trim().toUpperCase();
+      const discountSnap = await db.collection("discounts").where("code", "==", normalizedCode).limit(1).get();
+      if (discountSnap.empty) {
+        return res.status(400).json({ error: "This coupon is invalid or not available right now." });
+      }
+      activeDiscount = discountSnap.docs[0].data();
+      if (activeDiscount.active === false) {
+        return res.status(400).json({ error: "This coupon is no longer active." });
+      }
+    }
 
     // Normalize requested items. variantId is optional — missing/"_legacy"
     // means "old flat product, no variant subcollection".
@@ -89,11 +104,13 @@ export default async function handler(req, res) {
 
       // PASS 1: all reads. Firestore transactions require every tx.get()
       // to happen before any tx.set()/tx.update().
+      const productsById = new Map();
       for (const it of requested) {
         const productRef = db.collection("products").doc(it.productId);
         const { product, variantRef, variant } = await resolveVariant(tx, db, productRef, it.variantId);
 
         if (variant.active === false) throw new Error(`"${product.name}" is no longer available.`);
+        productsById.set(it.productId, product);
 
         const price = Number(variant.price);
         if (!price || price <= 0) throw new Error(`"${product.name}" doesn't have a valid price.`);
@@ -143,6 +160,14 @@ export default async function handler(req, res) {
 
       if (resolved.length === 0) throw new Error("No valid items in cart.");
 
+      if (activeDiscount) {
+        const rule = getDiscountForCart({ items: resolved.map((item) => ({ ...item, price: item.price })), products: Array.from(productsById.values()), discount: activeDiscount });
+        if (!rule.valid) {
+          throw new Error(rule.reason || "This coupon cannot be used for your cart yet.");
+        }
+        discountAmount = Number(rule.discountAmount) || 0;
+      }
+
       // PASS 2: all writes. No further reads allowed.
       // Holds stock via reservedStock instead of decrementing stock directly,
       // so `stock` only drops on confirmed payment and an expiry/cancel just
@@ -153,17 +178,20 @@ export default async function handler(req, res) {
 
       const SHIPPING_RATE_RUPEES = Number(process.env.SHIPPING_RATE_RUPEES || 80);
       const SHIPPING_FREE_THRESHOLD_RUPEES = Number(process.env.SHIPPING_FREE_THRESHOLD_RUPEES || 500);
-      const shippingRupees = itemsAmountRupees >= SHIPPING_FREE_THRESHOLD_RUPEES ? 0 : SHIPPING_RATE_RUPEES;
+      const discountedItemsAmount = Math.max(0, itemsAmountRupees - discountAmount);
+      const shippingRupees = discountedItemsAmount >= SHIPPING_FREE_THRESHOLD_RUPEES ? 0 : SHIPPING_RATE_RUPEES;
 
       // Rounded rupee values — these are what get stored in Firestore.
       const itemsAmountRupeesRounded = Math.round(itemsAmountRupees * 100) / 100;
+      const discountAmountRounded = Math.round(discountAmount * 100) / 100;
       const shippingRupeesRounded = Math.round(shippingRupees * 100) / 100;
-      const totalRupeesRounded = Math.round((itemsAmountRupeesRounded + shippingRupeesRounded) * 100) / 100;
+      const totalRupeesRounded = Math.round((itemsAmountRupeesRounded - discountAmountRounded + shippingRupeesRounded) * 100) / 100;
 
       // Paise versions — only used for Razorpay + the API response, same as before.
       const itemsAmountPaiseLocal = Math.round(itemsAmountRupeesRounded * 100);
+      const discountAmountPaiseLocal = Math.round(discountAmountRounded * 100);
       const shippingPaiseLocal = Math.round(shippingRupeesRounded * 100);
-      const totalPaiseLocal = itemsAmountPaiseLocal + shippingPaiseLocal;
+      const totalPaiseLocal = itemsAmountPaiseLocal - discountAmountPaiseLocal + shippingPaiseLocal;
 
       tx.set(orderRef, {
         items: resolved,
@@ -182,7 +210,9 @@ export default async function handler(req, res) {
         // Stored in RUPEES (not paise).
         amount: totalRupeesRounded,
         itemsAmount: itemsAmountRupeesRounded,
+        discountAmount: discountAmountRounded,
         shippingAmount: shippingRupeesRounded,
+        couponCode: activeDiscount ? String(activeDiscount.code).toUpperCase() : null,
         currency: "INR",
         status: "reserved",
         reservedUntil: reservationUntil,
@@ -194,8 +224,9 @@ export default async function handler(req, res) {
       return {
         resolvedItems: resolved,
         itemsAmountPaise: itemsAmountPaiseLocal,
+        discountAmountPaise: discountAmountPaiseLocal,
         shippingPaise: shippingPaiseLocal,
-        totalAmountPaise: totalPaiseLocal,
+        totalAmountPaise: Math.max(0, totalPaiseLocal),
       };
     });
 

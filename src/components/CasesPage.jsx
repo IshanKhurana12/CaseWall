@@ -9,6 +9,7 @@ import JewelryCollection from "./JewelryCollection";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import Footer from "./Footer";
+import { getCategoryLabel, getProductCategoryValues } from "../lib/discounts";
 
 const PAGE_SIZE = 8;
 
@@ -46,6 +47,7 @@ export default function CasesPage() {
   const [search, setSearch] = useState("");
   const [view, setView] = useState("cases"); // "cases" | "jewelry"
   const [page, setPage] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
   // "cases" (default) -> only isJewellery !== true
   // "jewellery"        -> only isJewellery === true
@@ -78,6 +80,33 @@ export default function CasesPage() {
     return ["Filter Models", ...Array.from(set).sort()];
   }, [products]);
 
+  const categoryOptions = useMemo(() => {
+    const pool = products.filter((p) => {
+      if (categoryFilter === "cases") return p.isJewellery !== true;
+      if (categoryFilter === "jewellery") return p.isJewellery === true;
+      return true;
+    });
+
+    const raw = new Set();
+    for (const product of pool) {
+      for (const value of getProductCategoryValues(product)) {
+        raw.add(value);
+      }
+    }
+
+    return Array.from(raw)
+      .filter(Boolean)
+      .sort((a, b) => {
+        const aNum = Number(a);
+        const bNum = Number(b);
+        if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) return aNum - bNum;
+        if (!Number.isNaN(aNum)) return -1;
+        if (!Number.isNaN(bNum)) return 1;
+        return getCategoryLabel(a).localeCompare(getCategoryLabel(b));
+      })
+      .map((value) => ({ value, label: getCategoryLabel(value) }));
+  }, [products, categoryFilter]);
+
   const visible = useMemo(() => {
     return products.filter((p) => {
       const matchesModel =
@@ -85,7 +114,9 @@ export default function CasesPage() {
       const searchableModels = modelsForProduct(p).join(" ");
       const matchesSearch =
         !search.trim() ||
-        `${p.name ?? ""} ${searchableModels}`.toLowerCase().includes(search.trim().toLowerCase());
+        `${p.name ?? ""} ${searchableModels} ${getProductCategoryValues(p).join(" ")}`
+          .toLowerCase()
+          .includes(search.trim().toLowerCase());
 
       let matchesCategory = true;
       if (categoryFilter === "cases") {
@@ -94,14 +125,17 @@ export default function CasesPage() {
         matchesCategory = p.isJewellery === true;
       } // "all" -> no filtering
 
-      return matchesModel && matchesSearch && matchesCategory;
+      const matchesProductCategory =
+        selectedCategory === "all" || !selectedCategory || getProductCategoryValues(p).includes(selectedCategory);
+
+      return matchesModel && matchesSearch && matchesCategory && matchesProductCategory;
     });
-  }, [products, activeModel, search, categoryFilter, showModelFilter]);
+  }, [products, activeModel, search, categoryFilter, showModelFilter, selectedCategory]);
 
   // Reset to page 1 whenever the active filters/search change the result set
   useEffect(() => {
     setPage(1);
-  }, [activeModel, search, categoryFilter]);
+  }, [activeModel, search, categoryFilter, selectedCategory]);
 
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
 
@@ -125,6 +159,7 @@ export default function CasesPage() {
 
   const handleCategoryChange = (next) => {
     setCategoryFilter(next);
+    setSelectedCategory("all");
     // Reset model filter when it's no longer relevant (e.g. switching to Jewellery)
     if (next === "jewellery") {
       setActiveModel("Filter Models");
@@ -235,6 +270,30 @@ export default function CasesPage() {
             </Link>
           </div>
         </div>
+
+        {categoryOptions.length > 0 && (
+          <div className="deal-grid" aria-label="Shop by price and bundle deal">
+            {categoryOptions.slice(0, 4).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={"deal-card" + (selectedCategory === option.value ? " deal-card--active" : "")}
+                onClick={() => setSelectedCategory((current) => (current === option.value ? "all" : option.value))}
+              >
+                <span className="deal-card-kicker">Hot deal</span>
+                <span className="deal-card-title">{option.label}</span>
+                <span className="deal-card-meta">Shop this collection</span>
+              </button>
+            ))}
+            {selectedCategory !== "all" && (
+              <button type="button" className="deal-card deal-card--ghost" onClick={() => setSelectedCategory("all")}>
+                <span className="deal-card-kicker">Reset</span>
+                <span className="deal-card-title">All styles</span>
+                <span className="deal-card-meta">See everything</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {status === "loading" && (
           <div className="state-block">
