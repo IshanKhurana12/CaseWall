@@ -26,6 +26,19 @@ export function getCategoryLabel(raw) {
   if (!value) return "Featured";
 
   const normalized = value.toLowerCase();
+  const labelOverrides = {
+    under120: "Under ₹120",
+    under_120: "Under ₹120",
+    "under 120": "Under ₹120",
+    featured: "Featured",
+    trending: "Trending",
+    premium: "Premium",
+  };
+
+  if (labelOverrides[normalized]) {
+    return labelOverrides[normalized];
+  }
+
   const numeric = normalized.match(/^(\d+(?:\.\d+)?)$/);
   if (numeric) {
     return `Under ₹${Number(numeric[1]).toLocaleString("en-IN")}`;

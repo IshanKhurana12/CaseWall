@@ -48,6 +48,7 @@ export default function CasesPage() {
   const [view, setView] = useState("cases"); // "cases" | "jewelry"
   const [page, setPage] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [sortBy, setSortBy] = useState("featured");
 
   // "cases" (default) -> only isJewellery !== true
   // "jewellery"        -> only isJewellery === true
@@ -94,21 +95,16 @@ export default function CasesPage() {
       }
     }
 
-    return Array.from(raw)
-      .filter(Boolean)
-      .sort((a, b) => {
-        const aNum = Number(a);
-        const bNum = Number(b);
-        if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) return aNum - bNum;
-        if (!Number.isNaN(aNum)) return -1;
-        if (!Number.isNaN(bNum)) return 1;
-        return getCategoryLabel(a).localeCompare(getCategoryLabel(b));
-      })
+    const preferredOrder = ["under120", "featured", "trending", "premium"];
+    const availableCategories = new Set(Array.from(raw).filter(Boolean));
+
+    return preferredOrder
+      .filter((value) => availableCategories.has(value))
       .map((value) => ({ value, label: getCategoryLabel(value) }));
   }, [products, categoryFilter]);
 
   const visible = useMemo(() => {
-    return products.filter((p) => {
+    const filtered = products.filter((p) => {
       const matchesModel =
         !showModelFilter || activeModel === "Filter Models" || modelsForProduct(p).includes(activeModel);
       const searchableModels = modelsForProduct(p).join(" ");
@@ -130,12 +126,29 @@ export default function CasesPage() {
 
       return matchesModel && matchesSearch && matchesCategory && matchesProductCategory;
     });
-  }, [products, activeModel, search, categoryFilter, showModelFilter, selectedCategory]);
+
+    const sorted = [...filtered];
+    if (sortBy === "price-low-high") {
+      sorted.sort((a, b) => {
+        const av = Number(a.priceFrom ?? a.price ?? 0) || 0;
+        const bv = Number(b.priceFrom ?? b.price ?? 0) || 0;
+        return av - bv;
+      });
+    } else if (sortBy === "price-high-low") {
+      sorted.sort((a, b) => {
+        const av = Number(a.priceFrom ?? a.price ?? 0) || 0;
+        const bv = Number(b.priceFrom ?? b.price ?? 0) || 0;
+        return bv - av;
+      });
+    }
+
+    return sorted;
+  }, [products, activeModel, search, categoryFilter, showModelFilter, selectedCategory, sortBy]);
 
   // Reset to page 1 whenever the active filters/search change the result set
   useEffect(() => {
     setPage(1);
-  }, [activeModel, search, categoryFilter, selectedCategory]);
+  }, [activeModel, search, categoryFilter, selectedCategory, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
 
@@ -143,6 +156,15 @@ export default function CasesPage() {
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  useEffect(() => {
+    const isMobile = window.innerWidth < 768;
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: isMobile ? "auto" : "smooth",
+    });
+  }, [page, activeModel, search, categoryFilter, selectedCategory, sortBy]);
 
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
@@ -262,6 +284,16 @@ export default function CasesPage() {
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search products"
             />
+            <select
+              className="model-select sort-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              aria-label="Sort products"
+            >
+              <option value="featured">Sort: Featured</option>
+              <option value="price-low-high">Price: Low to High</option>
+              <option value="price-high-low">Price: High to Low</option>
+            </select>
             <Link to="/cart" className="cart-nav-link" aria-label="View cart">
               Cart{count > 0 && <span className="cart-nav-count">{count}</span>}
             </Link>

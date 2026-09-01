@@ -1319,6 +1319,9 @@ body {
   outline-offset: 2px;
 }
 
+.sort-select {
+  min-width: 164px;
+}
 
 /* Pagination */
 .pagination {
