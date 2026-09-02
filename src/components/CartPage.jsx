@@ -37,6 +37,49 @@ export default function CartPage() {
     setCouponInput(couponCode || "");
   }, [couponCode]);
 
+  React.useEffect(() => {
+    if (!couponCode || items.length === 0) return undefined;
+
+    let cancelled = false;
+
+    async function revalidateCoupon() {
+      try {
+        const response = await fetch("/api/validate-discount", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            couponCode,
+            items: items.map((item) => ({
+              productId: item.productId,
+              variantId: item.variantId,
+              qty: item.qty,
+              price: item.price,
+            })),
+          }),
+        });
+
+        const payload = await response.json();
+        if (cancelled) return;
+
+        if (!response.ok) {
+          clearCoupon();
+          setCouponSuccess("");
+          setCouponError(payload.error || "This coupon is no longer valid for your cart.");
+          return;
+        }
+
+        setCouponCode(payload.code, payload.discountAmount || 0);
+      } catch (err) {
+        if (!cancelled) console.error("Could not revalidate coupon:", err);
+      }
+    }
+
+    revalidateCoupon();
+    return () => {
+      cancelled = true;
+    };
+  }, [items, couponCode]);
+
   async function applyCoupon() {
     const raw = couponInput.trim();
     if (!raw) {
