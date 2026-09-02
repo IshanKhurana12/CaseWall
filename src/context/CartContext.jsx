@@ -62,6 +62,7 @@ export function CartProvider({ children }) {
   //             { id: "_legacy", model: product.model, color: null, price: product.price, imageUrls: product.imageUrls }
   function addItem(product, variant, qty = 1) {
     const key = cartKey(product.id, variant.id);
+    setCoupon({ code: "", discount: 0 });
     setItems((prev) => {
       const existing = prev.find((i) => i.key === key);
       if (existing) {
@@ -90,12 +91,14 @@ export function CartProvider({ children }) {
 
   function removeItem(productId, variantId) {
     const key = cartKey(productId, variantId);
+    setCoupon({ code: "", discount: 0 });
     setItems((prev) => prev.filter((i) => i.key !== key));
   }
 
   function updateQty(productId, variantId, qty) {
     const key = cartKey(productId, variantId);
     if (qty <= 0) return removeItem(productId, variantId);
+    setCoupon({ code: "", discount: 0 });
     setItems((prev) => prev.map((i) => (i.key === key ? { ...i, qty } : i)));
   }
 

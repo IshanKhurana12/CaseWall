@@ -28,6 +28,8 @@ export default function CartPage() {
   const [couponError, setCouponError] = React.useState("");
   const [couponLoading, setCouponLoading] = React.useState(false);
   const [couponSuccess, setCouponSuccess] = React.useState("");
+  const itemsRef = React.useRef(items);
+  itemsRef.current = items;
   // Shipping uses site-wide configurable constants
   const shippingRupees = subtotal >= SHIPPING_FREE_THRESHOLD_RUPEES ? 0 : SHIPPING_RATE_RUPEES;
   const discountedSubtotal = Math.max(0, subtotal - (Number(couponDiscount) || 0));
@@ -91,6 +93,7 @@ export default function CartPage() {
     setCouponLoading(true);
     setCouponError("");
     setCouponSuccess("");
+    const itemsAtRequest = items;
 
     try {
       const response = await fetch("/api/validate-discount", {
@@ -107,6 +110,8 @@ export default function CartPage() {
         clearCoupon();
         throw new Error(payload.error || "This coupon is invalid.");
       }
+
+      if (itemsRef.current !== itemsAtRequest) return;
 
       setCouponCode(payload.code, payload.discountAmount || 0);
       setCouponSuccess(payload.message || `${payload.code} applied successfully.`);
