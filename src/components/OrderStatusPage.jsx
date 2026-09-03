@@ -192,6 +192,18 @@ export default function OrderStatusPage() {
                 <div style={{ color: "var(--slate)" }}>Method</div>
                 <div>{order.paymentMethod || order.method || "Razorpay"}</div>
               </div>
+              {String(order.paymentMethod || "").toUpperCase() === "COD" && (
+                <>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                    <div style={{ color: "var(--slate)" }}>Paid as advance</div>
+                    <div>{formatPrice(order.codAdvanceAmount ?? order.paymentAmount ?? 0)}</div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                    <div style={{ color: "var(--slate)" }}>Cash due on delivery</div>
+                    <div>{formatPrice(order.codAmount ?? 0)}</div>
+                  </div>
+                </>
+              )}
               {order.razorpay?.payment_id || order.paymentId || order.razorpayPaymentId ? (
                 <div style={{ marginTop: 8 }}>
                   <div style={{ color: "var(--slate)" }}>Razorpay payment ID </div>

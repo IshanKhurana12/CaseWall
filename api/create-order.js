@@ -40,7 +40,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { items, contact, address, couponCode } = req.body || {};
+    const { items, contact, address, couponCode, paymentMethod = "PREPAID" } = req.body || {};
+    const normalizedPaymentMethod = String(paymentMethod).trim().toUpperCase();
+    if (!["PREPAID", "COD"].includes(normalizedPaymentMethod)) {
+      return res.status(400).json({ error: "Unsupported payment method." });
+    }
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: "Cart is empty." });
@@ -96,7 +100,7 @@ export default async function handler(req, res) {
     // Firestore stores amounts in RUPEES. Razorpay still needs paise,
     // so we keep computing the paise versions too, only for the
     // Razorpay API call and the response below (unchanged behavior).
-    const { resolvedItems, itemsAmountPaise, shippingPaise, totalAmountPaise } = await db.runTransaction(async (tx) => {
+    const { resolvedItems, itemsAmountPaise, shippingPaise, totalAmountPaise, paymentAmountPaise, codAmountPaise } = await db.runTransaction(async (tx) => {
       let itemsAmountRupees = 0;
       const resolved = [];
       // key = variantRef.path → { variantRef, currentReserved, reserveQty }
@@ -192,6 +196,14 @@ export default async function handler(req, res) {
       const discountAmountPaiseLocal = Math.round(discountAmountRounded * 100);
       const shippingPaiseLocal = Math.round(shippingRupeesRounded * 100);
       const totalPaiseLocal = itemsAmountPaiseLocal - discountAmountPaiseLocal + shippingPaiseLocal;
+      const codAdvanceRupees = Number(process.env.COD_ADVANCE_RUPEES || 100);
+      const totalRupeesLocal = totalPaiseLocal / 100;
+      const paymentRupees = normalizedPaymentMethod === "COD"
+        ? Math.min(totalRupeesLocal, Math.max(0, codAdvanceRupees))
+        : totalRupeesLocal;
+      const codDueRupees = normalizedPaymentMethod === "COD"
+        ? Math.max(0, totalRupeesLocal - paymentRupees)
+        : 0;
 
       tx.set(orderRef, {
         items: resolved,
@@ -213,6 +225,10 @@ export default async function handler(req, res) {
         discountAmount: discountAmountRounded,
         shippingAmount: shippingRupeesRounded,
         couponCode: activeDiscount ? String(activeDiscount.code).toUpperCase() : null,
+        paymentMethod: normalizedPaymentMethod,
+        paymentAmount: Math.round(paymentRupees * 100) / 100,
+        codAmount: Math.round(codDueRupees * 100) / 100,
+        codAdvanceAmount: normalizedPaymentMethod === "COD" ? Math.round(paymentRupees * 100) / 100 : 0,
         currency: "INR",
         status: "reserved",
         reservedUntil: reservationUntil,
@@ -227,6 +243,8 @@ export default async function handler(req, res) {
         discountAmountPaise: discountAmountPaiseLocal,
         shippingPaise: shippingPaiseLocal,
         totalAmountPaise: Math.max(0, totalPaiseLocal),
+        paymentAmountPaise: Math.max(0, Math.round(paymentRupees * 100)),
+        codAmountPaise: Math.max(0, Math.round(codDueRupees * 100)),
       };
     });
 
@@ -235,7 +253,7 @@ export default async function handler(req, res) {
     let razorpayOrder;
     try {
       razorpayOrder = await razorpay.orders.create({
-        amount: totalAmountPaise,
+        amount: paymentAmountPaise,
         currency: "INR",
         receipt: orderId,
         notes: { orderId },
@@ -275,7 +293,9 @@ export default async function handler(req, res) {
     return res.status(200).json({
       orderId,
       razorpayOrderId: razorpayOrder.id,
-      amount: totalAmountPaise,
+      amount: paymentAmountPaise,
+      paymentAmount: paymentAmountPaise,
+      codAmount: codAmountPaise,
       itemsAmount: itemsAmountPaise,
       shippingAmount: shippingPaise,
       currency: "INR",

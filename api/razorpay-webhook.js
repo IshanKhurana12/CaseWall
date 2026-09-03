@@ -69,7 +69,7 @@ export default async function handler(req, res) {
             // is stored in Firestore in RUPEES, so convert it to paise
             // here for the comparison — do not compare them directly.
             const paidAmount = payment.amount;
-            const expectedAmountPaise = Math.round(Number(order.amount) * 100);
+            const expectedAmountPaise = Math.round(Number(order.paymentAmount ?? order.amount) * 100);
             if (Number(paidAmount) !== expectedAmountPaise) {
               console.error("Webhook payment amount mismatch", orderId, paidAmount, expectedAmountPaise);
               await orderRef.update({ paymentAmountMismatch: true, paymentAmount: paidAmount, expectedAmount: expectedAmountPaise });

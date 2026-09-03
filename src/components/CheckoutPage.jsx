@@ -34,6 +34,7 @@ export default function CheckoutPage() {
   const totalRupees = discountedSubtotal + shippingRupees;
   const [form, setForm] = useState(EMPTY_FORM);
   const [agreed, setAgreed] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState("PREPAID");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -92,6 +93,7 @@ export default function CheckoutPage() {
             state: form.state.trim(),
             pincode: form.pincode.trim(),
           },
+          paymentMethod,
         }),
       });
 
@@ -219,6 +221,18 @@ export default function CheckoutPage() {
             <span>Total</span>
             <span>{formatPrice(totalRupees)}</span>
           </div>
+          {paymentMethod === "COD" && (
+            <div className="checkout-summary-line" style={{ color: "var(--grip)", marginTop: 8 }}>
+              <span>COD advance now</span>
+              <span>{formatPrice(Math.min(totalRupees, 100))}</span>
+            </div>
+          )}
+          {paymentMethod === "COD" && totalRupees > 100 && (
+            <div className="checkout-summary-line">
+              <span>Cash due on delivery</span>
+              <span>{formatPrice(totalRupees - 100)}</span>
+            </div>
+          )}
           <p className="cart-summary-note">Shipping cost is confirmed for your pincode after you place the order.</p>
         </div>
 
@@ -269,8 +283,36 @@ export default function CheckoutPage() {
 
           {error && <p className="checkout-error">{error}</p>}
 
+          <div className="payment-method-choice">
+            <p className="coupon-label">Payment method</p>
+            <label>
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="PREPAID"
+                checked={paymentMethod === "PREPAID"}
+                onChange={() => setPaymentMethod("PREPAID")}
+              />
+              Pay full amount online
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="COD"
+                checked={paymentMethod === "COD"}
+                onChange={() => setPaymentMethod("COD")}
+              />
+              Cash on delivery: pay ₹100 now, rest on delivery
+            </label>
+          </div>
+
           <button type="button" className="pp-btn pp-btn-primary" onClick={handlePay} disabled={loading}>
-            {loading ? "Processing…" : `Pay ${formatPrice(totalRupees)} with Razorpay`}
+            {loading
+              ? "Processing…"
+              : paymentMethod === "COD"
+              ? `Pay ${formatPrice(Math.min(totalRupees, 100))} advance`
+              : `Pay ${formatPrice(totalRupees)} with Razorpay`}
           </button>
         </form>
       </div>

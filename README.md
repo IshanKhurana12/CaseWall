@@ -80,6 +80,9 @@ bundled into the browser. Full list and where to find each value is in `.env.exa
 - shipping-partner credentials for your chosen courier (Shiprocket or another provider) —
   add them in your deployment platform's environment variables when you connect the shipping
   integration
+- `COD_ADVANCE_RUPEES` — amount collected online before shipping for COD orders (defaults to
+  `100`). COD shipments are sent to Shiprocket with the remaining balance in `cod_amount`; select
+  Shadowfax as the courier in Shiprocket or set `SHIPROCKET_COURIER_ID` if using a fixed courier.
 - `FIREBASE_SERVICE_ACCOUNT` (or the three `FIREBASE_PROJECT_ID` / `FIREBASE_CLIENT_EMAIL`
   / `FIREBASE_PRIVATE_KEY` vars) — from the service account key you generated in step 1
 

@@ -194,6 +194,49 @@
   font-family: var(--font-mono);
 }
 
+.payment-method-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 2px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+}
+
+.payment-method-choice .coupon-label {
+  margin-bottom: 2px;
+}
+
+.payment-method-choice label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.payment-method-choice label:has(input:checked) {
+  border-color: var(--ink);
+  background: rgba(23, 21, 18, 0.06);
+}
+
+.payment-method-choice input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  accent-color: var(--grip);
+}
+
 .checkout-summary-line {
   display: flex;
   justify-content: space-between;
@@ -274,6 +317,17 @@
   font-size: 11px;
   cursor: pointer;
   padding: 0;
+}
+
+@media (max-width: 520px) {
+  .payment-method-choice {
+    padding: 12px;
+  }
+
+  .payment-method-choice label {
+    padding: 10px;
+    font-size: 13px;
+  }
 }
 
 /* ---------- Order status page ---------- */

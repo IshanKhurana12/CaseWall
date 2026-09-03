@@ -1243,6 +1243,11 @@ export async function createShiprocketOrder(
         0
     );
 
+  const discountAmount = Number(order.discountAmount || 0);
+  const isCod = String(order.paymentMethod || "PREPAID").toUpperCase() === "COD";
+  const codAmount = isCod ? Math.max(0, Number(order.codAmount || 0)) : 0;
+  const netItemsSubtotal = Math.max(0, itemsSubtotal - discountAmount);
+
   /*
    * ----------------------------------------------------------
    * GST
@@ -1505,7 +1510,13 @@ export async function createShiprocketOrder(
       ),
 
     payment_method:
-      "Prepaid",
+      isCod ? "COD" : "Prepaid",
+
+    ...(isCod
+      ? {
+          cod_amount: codAmount,
+        }
+      : {}),
 
     /*
      * IMPORTANT:
@@ -1517,7 +1528,7 @@ export async function createShiprocketOrder(
      */
     sub_total:
       Number(
-        itemsSubtotal || 0
+        netItemsSubtotal || 0
       ).toFixed(2),
 
     /*
@@ -1529,7 +1540,7 @@ export async function createShiprocketOrder(
       ).toFixed(2),
 
     total_discount:
-      "0",
+      discountAmount.toFixed(2),
 
     /*
      * Product rows.
