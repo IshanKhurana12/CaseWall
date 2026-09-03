@@ -233,7 +233,7 @@ export default function CheckoutPage() {
               <span>{formatPrice(totalRupees - 100)}</span>
             </div>
           )}
-          <p className="cart-summary-note">Shipping cost is confirmed for your pincode after you place the order.</p>
+
         </div>
 
         <form className="checkout-form" onSubmit={(e) => e.preventDefault()}>
@@ -274,12 +274,7 @@ export default function CheckoutPage() {
             <input id="pincode" value={form.pincode} onChange={update("pincode")} inputMode="numeric" maxLength={6} autoComplete="postal-code" />
           </div>
 
-          <div className="checkout-policy-check">
-          
-            <label htmlFor="agree">
-              <p> <a href="/returnPolicy">Read the full return and replacement policy →</a></p>
-            </label>
-          </div>
+
 
           {error && <p className="checkout-error">{error}</p>}
 
@@ -303,8 +298,13 @@ export default function CheckoutPage() {
                 checked={paymentMethod === "COD"}
                 onChange={() => setPaymentMethod("COD")}
               />
-              Cash on delivery: pay ₹100 now, rest on delivery
+              Cash on delivery
             </label>
+            <p className={`payment-method-note${paymentMethod === "COD" ? " payment-method-note-visible" : ""}`}>
+              Pay a ₹100 confirmation advance now. The remaining balance is
+              payable at delivery. The advance is non-refundable if the order
+              is not completed.
+            </p>
           </div>
 
           <button type="button" className="pp-btn pp-btn-primary" onClick={handlePay} disabled={loading}>

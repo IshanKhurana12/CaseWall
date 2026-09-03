@@ -211,9 +211,10 @@
 
 .payment-method-choice label {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   min-width: 0;
+  min-height: 42px;
   padding: 11px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -235,6 +236,19 @@
   height: 16px;
   margin: 1px 0 0;
   accent-color: var(--grip);
+}
+
+.payment-method-note {
+  min-height: 35px;
+  margin: -2px 4px 0 38px;
+  color: var(--slate);
+  font-size: 12px;
+  line-height: 1.45;
+  visibility: hidden;
+}
+
+.payment-method-note-visible {
+  visibility: visible;
 }
 
 .checkout-summary-line {
@@ -327,6 +341,11 @@
   .payment-method-choice label {
     padding: 10px;
     font-size: 13px;
+  }
+
+  .payment-method-note {
+    margin-left: 34px;
+    min-height: 52px;
   }
 }
 
