@@ -95,6 +95,7 @@ export function getDiscountForCart({ items = [], products = [], discount = null 
   const productMap = new Map(products.map((product) => [String(product.id), product]));
   let totalMatchedQty = 0;
   let eligibleSubtotal = 0;
+  const matchedUnitPrices = [];
 
   for (const item of items) {
     const qty = Number(item.qty || 1);
@@ -109,6 +110,7 @@ export function getDiscountForCart({ items = [], products = [], discount = null 
     const price = Number(item.price) || Number(product?.price) || 0;
     totalMatchedQty += qty;
     eligibleSubtotal += price * qty;
+    for (let index = 0; index < qty; index += 1) matchedUnitPrices.push(price);
   }
 
   if (!buyQty || buyQty <= 0) {
@@ -134,7 +136,12 @@ export function getDiscountForCart({ items = [], products = [], discount = null 
     };
   }
 
-  const discountAmount = Math.max(0, eligibleSubtotal - bundlePrice * bundleCount);
+  // Only complete bundle units receive the bundle price; leftover units stay
+  // at their normal price.
+  matchedUnitPrices.sort((a, b) => b - a);
+  const bundleUnitCount = bundleCount * buyQty;
+  const bundleSubtotal = matchedUnitPrices.slice(0, bundleUnitCount).reduce((sum, value) => sum + value, 0);
+  const discountAmount = Math.max(0, bundleSubtotal - bundlePrice * bundleCount);
 
   return {
     valid: true,
