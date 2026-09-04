@@ -13,6 +13,33 @@ import { getCategoryLabel, getProductCategoryValues } from "../lib/discounts";
 
 const PAGE_SIZE = 8;
 
+const HERO_OFFERS = [
+  {
+    eyebrow: "Anti-yellow cover offer",
+    title: "Buy 2, pay ₹350",
+    code: "BUY2",
+    detail: "Use this code on eligible anti-yellow covers.",
+  },
+  {
+    eyebrow: "Anti-yellow cover offer",
+    title: "Buy 3, pay ₹500",
+    code: "BUY3",
+    detail: "Use this code on eligible anti-yellow covers.",
+  },
+  {
+    eyebrow: "50 off on purchase of ₹1,200",
+    title: "Spend ₹1,200 or more",
+    code: "GET50OFF",
+    detail: "Get ₹50 off when your order reaches ₹1,200.",
+  },
+  {
+    eyebrow: "Limited order offer",
+    title: "₹150 off at ₹1,600",
+    code: "150OFF",
+    detail: "Save ₹150 when your order reaches ₹1,600.",
+  },
+];
+
 // Normalizes casing/whitespace so "Iphone 15 Pro" and "iPhone 15 Pro"
 // are treated as the same model everywhere (dropdown + filtering).
 // If your DB has other inconsistent naming (extra spaces, "Iphone" vs
@@ -49,6 +76,7 @@ export default function CasesPage() {
   const [page, setPage] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("featured");
+  const [heroOffer, setHeroOffer] = useState(0);
 
   // "cases" (default) -> only isJewellery !== true
   // "jewellery"        -> only isJewellery === true
@@ -56,6 +84,13 @@ export default function CasesPage() {
   const [categoryFilter, setCategoryFilter] = useState("cases");
 
   const showModelFilter = categoryFilter === "cases" || categoryFilter === "all";
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setHeroOffer((current) => (current + 1) % HERO_OFFERS.length);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -102,6 +137,11 @@ export default function CasesPage() {
       .filter((value) => availableCategories.has(value))
       .map((value) => ({ value, label: getCategoryLabel(value) }));
   }, [products, categoryFilter]);
+
+  const hasAntiYellowProducts = useMemo(
+    () => products.some((product) => getProductCategoryValues(product).includes("anti yellow")),
+    [products]
+  );
 
   const visible = useMemo(() => {
     const filtered = products.filter((p) => {
@@ -302,6 +342,32 @@ export default function CasesPage() {
             </Link>
           </div>
         </div>
+
+        {hasAntiYellowProducts && (
+          <section className="anti-yellow-offer" aria-label="Anti-yellow cover offers">
+            <div className="discount-showcase-heading">
+              <span className="anti-yellow-offer-kicker">Current offers</span>
+            </div>
+            <div className="hero-offer discount-carousel" aria-live="polite">
+              <span className="hero-offer-kicker">{HERO_OFFERS[heroOffer].eyebrow}</span>
+              <h2 className="hero-offer-title">{HERO_OFFERS[heroOffer].title}</h2>
+              <span className="hero-offer-code">Use code {HERO_OFFERS[heroOffer].code}</span>
+              <p className="hero-offer-detail">{HERO_OFFERS[heroOffer].detail}</p>
+              <div className="hero-offer-dots" aria-label="Choose an offer">
+                {HERO_OFFERS.map((offer, index) => (
+                  <button
+                    key={offer.title}
+                    type="button"
+                    className={index === heroOffer ? "hero-offer-dot hero-offer-dot-active" : "hero-offer-dot"}
+                    onClick={() => setHeroOffer(index)}
+                    aria-label={`Show offer ${index + 1}`}
+                    aria-pressed={index === heroOffer}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {categoryOptions.length > 0 && (
           <div className="deal-grid" aria-label="Shop by price and bundle deal">

@@ -1,13 +1,13 @@
 :root {
   --ink: #171512;
-  --paper: #F4F0E6;
-  --board: #D9D2C0;
-  --board-dot: #C7BFA9;
-  --signal: #E1552B;
-  --grip: #15693F;
-  --grip-bright: #1E8F55;
-  --slate: #726A5A;
-  --line: #C7BFA9;
+  --paper: #f4f0e6;
+  --board: #d9d2c0;
+  --board-dot: #c7bfa9;
+  --signal: #e1552b;
+  --grip: #15693f;
+  --grip-bright: #1e8f55;
+  --slate: #726a5a;
+  --line: #c7bfa9;
 
   --font-display: "Space Grotesk", sans-serif;
   --font-body: "Inter", sans-serif;
