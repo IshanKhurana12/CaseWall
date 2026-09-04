@@ -114,7 +114,7 @@ export default async function handler(req, res) {
         const { product, variantRef, variant } = await resolveVariant(tx, db, productRef, it.variantId);
 
         if (variant.active === false) throw new Error(`"${product.name}" is no longer available.`);
-        productsById.set(it.productId, product);
+        productsById.set(it.productId, { id: it.productId, ...product });
 
         const price = Number(variant.price);
         if (!price || price <= 0) throw new Error(`"${product.name}" doesn't have a valid price.`);

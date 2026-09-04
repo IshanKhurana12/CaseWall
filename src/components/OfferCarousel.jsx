@@ -3,15 +3,15 @@ import { useEffect, useState } from "react";
 export const HERO_OFFERS = [
   {
     eyebrow: "Anti-yellow cover offer",
-    title: "Buy 2, pay ₹350",
+    title: "Add 2 anti-yellow cases",
     code: "BUY2",
-    detail: "Use this code on eligible anti-yellow covers.",
+    detail: "Use BUY2 to get both cases for ₹350.",
   },
   {
     eyebrow: "Anti-yellow cover offer",
-    title: "Buy 3, pay ₹500",
+    title: "Add 3 anti-yellow cases",
     code: "BUY3",
-    detail: "Use this code on eligible anti-yellow covers.",
+    detail: "Use BUY3 to get all three cases for ₹500.",
   },
   {
     eyebrow: "50 off on purchase of ₹1,200",
