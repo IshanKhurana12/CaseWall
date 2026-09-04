@@ -663,6 +663,47 @@
 
 
 .pp-variant-picker { margin: 16px 0; }
+
+.pp-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.pp-cod-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid var(--grip);
+  border-radius: 999px;
+  background: rgba(21, 105, 63, 0.08);
+  color: var(--grip);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.discount-carousel-compact {
+  margin: 12px 0 18px;
+  min-height: 104px;
+  padding: 12px 150px 22px 20px;
+}
+
+.discount-carousel-compact .hero-offer-title {
+  font-size: clamp(22px, 3vw, 34px);
+}
+
+@media (max-width: 640px) {
+  .discount-carousel-compact {
+    min-height: 112px;
+    padding: 12px 72px 26px 16px;
+  }
+}
+
 .pp-variant-group { margin-bottom: 12px; }
 .pp-variant-label { font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #555; }
 .pp-variant-options { display: flex; gap: 8px; flex-wrap: wrap; }

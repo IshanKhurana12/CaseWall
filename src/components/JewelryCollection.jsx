@@ -32,9 +32,6 @@ function formatPrice(v) {
   if (v === null || v === undefined || v === "") return null;
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(v));
 }
-function formatReviewCount(n) {
-  return n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : `${n}`;
-}
 function buildWhatsAppLink(p) {
   const price = formatPrice(p.price);
   const mrp = formatPrice(p.mrp);
@@ -46,54 +43,6 @@ function buildWhatsAppLink(p) {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(lines.join(" "))}`;
 }
 
-// Deterministic pseudo-random generator, seeded by a string (the product id
-// or name). Same seed always produces the same numbers, so a document
-// without a rating field gets a stable "random" rating instead of one that
-// changes on every render.
-function seededRandom(seed) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) { h = (h << 5) - h + seed.charCodeAt(i); h |= 0; }
-  return function next() { h = (h * 1103515245 + 12345) & 0x7fffffff; return h / 0x7fffffff; };
-}
-
-// Firestore documents may or may not include rating/reviewCount. When
-// they're missing, generate a plausible, stable rating (4.50–5.00, so it
-// always shows more than 4 full stars) and review count (12–980).
-function getDisplayRating(p) {
-  const hasRating = p.rating !== undefined && p.rating !== null && p.rating !== "";
-  const hasCount = p.reviewCount !== undefined && p.reviewCount !== null;
-  if (hasRating && hasCount) return { rating: Number(p.rating), reviewCount: Number(p.reviewCount) };
-
-  const rand = seededRandom(String(p.id ?? p.name ?? "piece"));
-  const rating = hasRating ? Number(p.rating) : Math.round((4.5 + rand() * 0.5) * 100) / 100;
-  const reviewCount = hasCount ? Number(p.reviewCount) : Math.floor(12 + rand() * 968);
-  return { rating, reviewCount };
-}
-
-function StarRow({ rating }) {
-  const clamped = Math.max(0, Math.min(5, rating));
-  return (
-    <span className="jw-rating-stars">
-      {Array.from({ length: 5 }).map((_, i) => {
-        const diff = clamped - i;
-        const fill = diff >= 1 ? "currentColor" : diff >= 0.5 ? `url(#jw-half-${i})` : "none";
-        const opacity = diff >= 0.5 ? 1 : 0.35;
-        return (
-          <svg key={i} viewBox="0 0 24 24" width="13" height="13" style={{ opacity }}>
-            <defs>
-              <linearGradient id={`jw-half-${i}`}>
-                <stop offset="50%" stopColor="currentColor" />
-                <stop offset="50%" stopColor="transparent" />
-              </linearGradient>
-            </defs>
-            <path d="M12 2.5l2.94 6.02 6.56.96-4.75 4.7 1.12 6.6L12 17.77l-5.87 3.01 1.12-6.6-4.75-4.7 6.56-.96L12 2.5z" fill={fill} stroke="currentColor" strokeWidth="1.2" />
-          </svg>
-        );
-      })}
-    </span>
-  );
-}
-
 function JewelryCard({ p }) {
   const price = formatPrice(p.price);
   const mrp = formatPrice(p.mrp);
@@ -102,7 +51,6 @@ function JewelryCard({ p }) {
     : null;
   const category = p.category ?? p.cat ?? "";
   const description = p.description ?? p.desc ?? "";
-  const { rating, reviewCount } = getDisplayRating(p);
   const iconKey = ICONS[p.icon] ? p.icon : "ring";
 
   // Supports a multi-image "imageUrls" array, or falls back to the older
@@ -176,11 +124,6 @@ function JewelryCard({ p }) {
       <div className="jw-card-body">
         {category && <p className="jw-card-cat">{category}</p>}
         <h3 className="jw-card-name">{p.name ?? "Untitled piece"}</h3>
-        <div className="jw-card-rating">
-          <StarRow rating={rating} />
-          <span className="jw-card-rating-value">{rating.toFixed(2)}</span>
-          <span className="jw-card-rating-count">({formatReviewCount(reviewCount)})</span>
-        </div>
         {description && <p className="jw-card-desc">{description}</p>}
         <div className="jw-card-footer">
           <div className="jw-card-price-group">
