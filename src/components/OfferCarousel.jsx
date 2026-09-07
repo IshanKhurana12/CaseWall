@@ -41,10 +41,26 @@ export default function OfferCarousel({ compact = false }) {
 
   return (
     <div className={`hero-offer discount-carousel${compact ? " discount-carousel-compact" : ""}`} aria-live="polite">
+      <button
+        type="button"
+        className="hero-offer-arrow hero-offer-arrow-prev"
+        onClick={() => setActiveOffer((current) => (current - 1 + HERO_OFFERS.length) % HERO_OFFERS.length)}
+        aria-label="Previous offer"
+      >
+        ‹
+      </button>
       <span className="hero-offer-kicker">{offer.eyebrow}</span>
       <h2 className="hero-offer-title">{offer.title}</h2>
       <span className="hero-offer-code">Use code {offer.code}</span>
       <p className="hero-offer-detail">{offer.detail}</p>
+      <button
+        type="button"
+        className="hero-offer-arrow hero-offer-arrow-next"
+        onClick={() => setActiveOffer((current) => (current + 1) % HERO_OFFERS.length)}
+        aria-label="Next offer"
+      >
+        ›
+      </button>
       <div className="hero-offer-dots" aria-label="Choose an offer">
         {HERO_OFFERS.map((item, index) => (
           <button

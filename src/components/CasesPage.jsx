@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
-import { STORE_NAME, STORE_TAGLINE, WHATSAPP_NUMBER } from "../config";
+import { STORE_NAME, STORE_TAGLINE } from "../config";
 import ProductGrid from "./ProductGrid";
 import "../App.css";
 import "../jwelleryStyles.css";
 import JewelryCollection from "./JewelryCollection";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import Footer from "./Footer";
 import { getCategoryLabel, getProductCategoryValues } from "../lib/discounts";
@@ -177,9 +177,7 @@ export default function CasesPage() {
     return visible.slice(start, start + PAGE_SIZE);
   }, [visible, page]);
 
-  const navigate = useNavigate();
   const { count } = useCart();
-  const helpLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi! I have a question about a product or my order.")}`;
 
   if (view === "jewelry") {
     return <JewelryCollection onBack={() => setView("cases")} />;
@@ -225,17 +223,52 @@ export default function CasesPage() {
 
   return (
     <div className="page">
-      <header className="hero">
-        <div className="hero-inner">
-          <p className="eyebrow">Case wall — new drops weekly</p>
-          <h1 className="wordmark">{STORE_NAME}</h1>
-          <p className="tagline">{STORE_TAGLINE}</p>
+      <div className="store-announcement" role="status">
+        <span>Free shipping on eligible orders</span>
+        <span>Cash on delivery available</span>
+        <span>New designs added weekly</span>
+      </div>
+      <header className="store-header">
+        <div className="store-header-inner">
+          <Link to="/" className="store-brand" aria-label={`${STORE_NAME} home`}>
+            <span className="store-brand-mark">CW</span>
+            <span>
+              <strong>{STORE_NAME}</strong>
+              <small>{STORE_TAGLINE}</small>
+            </span>
+          </Link>
+          <nav className="store-nav" aria-label="Store navigation">
+            <button type="button" className={view === "cases" ? "store-nav-active" : ""} onClick={() => setView("cases")}>Cases</button>
+            {/* <button type="button" onClick={() => setView("jewelry")}>Jewellery</button> */}
+            <Link to="/orderstatus">Track order</Link>
+            <Link to="/cart" className="store-cart-link" aria-label={`View cart${count > 0 ? `, ${count} items` : ""}`}>
+              Cart {count > 0 && <span>{count}</span>}
+            </Link>
+          </nav>
         </div>
       </header>
 
       <main className="content">
-        <div className="toolbar">
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+        {hasAntiYellowProducts && (
+          <section className="top-offer-section" aria-label="Current offers">
+            <OfferCarousel />
+          </section>
+        )}
+
+        <section className="catalog-intro">
+          <div>
+            <p className="catalog-kicker">Casewall collection</p>
+            <h1>Latest drops</h1>
+            <p>Discover new phone cases designed for your everyday carry.</p>
+          </div>
+          <div className="catalog-meta">
+            <span>Free shipping on eligible orders</span>
+            <span>Secure checkout</span>
+          </div>
+        </section>
+
+        <div className="toolbar catalog-toolbar">
+          <div className="toolbar-left">
             {/* Category filter: Cases (default) / Jewellery / All */}
             <div className="model-rail" role="tablist" aria-label="Filter by category">
               <button
@@ -281,7 +314,7 @@ export default function CasesPage() {
             )}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <div className="toolbar-right">
             <input
               className="search"
               type="search"
@@ -300,45 +333,29 @@ export default function CasesPage() {
               <option value="price-low-high">Price: Low to High</option>
               <option value="price-high-low">Price: High to Low</option>
             </select>
-            <Link to="/cart" className="cart-nav-link" aria-label="View cart">
-              Cart{count > 0 && <span className="cart-nav-count">{count}</span>}
-            </Link>
-            <Link to="/orderstatus" className="cart-nav-link" aria-label="Orders">
-              Orders
-            </Link>
           </div>
         </div>
 
-        {hasAntiYellowProducts && (
-          <section className="anti-yellow-offer" aria-label="Anti-yellow cover offers">
-            <div className="discount-showcase-heading">
-              <span className="anti-yellow-offer-kicker">Current offers</span>
-            </div>
-            <OfferCarousel />
-          </section>
-        )}
-
         {categoryOptions.length > 0 && (
-          <div className="deal-grid" aria-label="Shop by price and bundle deal">
+          <div className="catalog-filter-bar" aria-label="Shop collections">
+            <span className="catalog-filter-label">Shop by:</span>
+            <button
+              type="button"
+              className={"catalog-filter-button" + (selectedCategory === "all" ? " catalog-filter-button-active" : "")}
+              onClick={() => setSelectedCategory("all")}
+            >
+              All styles
+            </button>
             {categoryOptions.slice(0, 4).map((option) => (
               <button
                 key={option.value}
                 type="button"
-                className={"deal-card" + (selectedCategory === option.value ? " deal-card--active" : "")}
-                onClick={() => setSelectedCategory((current) => (current === option.value ? "all" : option.value))}
+                className={"catalog-filter-button" + (selectedCategory === option.value ? " catalog-filter-button-active" : "")}
+                onClick={() => setSelectedCategory(option.value)}
               >
-                <span className="deal-card-kicker">Hot deal</span>
-                <span className="deal-card-title">{option.label}</span>
-                <span className="deal-card-meta">Shop this collection</span>
+                {option.label}
               </button>
             ))}
-            {selectedCategory !== "all" && (
-              <button type="button" className="deal-card deal-card--ghost" onClick={() => setSelectedCategory("all")}>
-                <span className="deal-card-kicker">Reset</span>
-                <span className="deal-card-title">All styles</span>
-                <span className="deal-card-meta">See everything</span>
-              </button>
-            )}
           </div>
         )}
 
@@ -377,6 +394,10 @@ export default function CasesPage() {
 
         {status === "ready" && visible.length > 0 && (
           <>
+            <div className="catalog-results-head">
+              <p><strong>{visible.length}</strong> products</p>
+              {search.trim() && <p>Showing results for “{search.trim()}”</p>}
+            </div>
             <ProductGrid products={paginated} />
 
             {totalPages > 1 && (
