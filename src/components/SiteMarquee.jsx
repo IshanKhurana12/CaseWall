@@ -16,7 +16,7 @@ export default function SiteMarquee() {
     },
     {
       key: "delivery",
-      content: <>NOTICE: Free Delivery on all orders above ₹450.</>,
+      content: <>NOTICE: Free Delivery on all orders above ₹349.</>,
       href: null,
     },
   ];
