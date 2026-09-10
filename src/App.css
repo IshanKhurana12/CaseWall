@@ -472,6 +472,15 @@
   flex-wrap: wrap;
 }
 
+.card-tax-note {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--slate);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
 .card-price {
   font-family: var(--font-mono);
   font-weight: 600;

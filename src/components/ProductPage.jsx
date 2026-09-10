@@ -342,6 +342,9 @@ export default function ProductPage() {
               {price && <span className="pp-price">{price}</span>}
               {mrp && <span className="card-mrp">{mrp}</span>}
             </div>
+                                 <div className="card-tax-note">
+    All taxes incl.
+  </div>
 
             {/* {product.description && <p className="pp-desc">{product.description}</p>} */}
 
@@ -502,7 +505,25 @@ export default function ProductPage() {
           </div>
         </div>
 
+  
+
+
+
+
         <FAQSection />
+
+  <div className="pp-product-info">
+  <p className="pp-product-info-title">Product Information</p>
+  <div className="pp-product-info-row">
+    <span className="pp-product-info-label">Marketed by</span>
+    <span className="pp-product-info-value">Casewall, India</span>
+  </div>
+  <div className="pp-product-info-row">
+    <span className="pp-product-info-label">Country of Origin</span>
+    <span className="pp-product-info-value">China(Imported)</span>
+  </div>
+</div>
+      
 
         <div className="pp-reviews" id="reviews" style={{ marginTop: 150 }}>
           <div className="pp-reviews-header">

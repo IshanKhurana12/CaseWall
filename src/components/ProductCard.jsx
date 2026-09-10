@@ -279,6 +279,9 @@ export default function ProductCard({ product }) {
             {price && <span className="card-price">{hasVariants ? `From ${price}` : price}</span>}
             {mrp && <span className="card-mrp">{mrp}</span>}
           </div>
+                     <div className="card-tax-note">
+    All taxes incl.
+  </div>
 
           {!outOfStock && (
             <div className="card-cta-row">
