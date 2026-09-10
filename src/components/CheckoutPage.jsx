@@ -5,6 +5,11 @@ import { RAZORPAY_KEY_ID, RETURN_POLICY_SHORT, STORE_NAME, SHIPPING_RATE_RUPEES,
 import { loadRazorpayScript } from "../lib/loadRazorpay";
 import "../cartCheckout.css";
 
+// Must match COD_HANDLING_FEE_RUPEES on the server (create-order.js / env
+// var). This is only used for display here — the actual amount charged is
+// whatever the server returns from /api/create-order.
+const COD_HANDLING_FEE_RUPEES = 50;
+
 const EMPTY_FORM = {
   name: "",
   phone: "",
@@ -32,6 +37,9 @@ export default function CheckoutPage() {
   // Shipping uses site-wide configurable constants
   const shippingRupees = discountedSubtotal >= SHIPPING_FREE_THRESHOLD_RUPEES ? 0 : SHIPPING_RATE_RUPEES;
   const totalRupees = discountedSubtotal + shippingRupees;
+  // COD handling fee is a flat charge paid online now; the full order value
+  // (totalRupees) remains due on delivery — it is NOT subtracted from totalRupees.
+  const codGrandTotal = totalRupees + COD_HANDLING_FEE_RUPEES;
   const [form, setForm] = useState(EMPTY_FORM);
   const [agreed, setAgreed] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState("PREPAID");
@@ -78,7 +86,10 @@ export default function CheckoutPage() {
     try {
       // The server re-fetches each variant's real price from Firestore —
       // the cart here only sends productId/variantId/qty, never amounts, so
-      // a customer can't tamper with prices client-side.
+      // a customer can't tamper with prices client-side. The server also
+      // decides the actual amount charged online (full total for prepaid,
+      // just the COD handling fee for COD) — the `amount` it returns below
+      // is authoritative, not anything computed here.
       const createRes = await fetch("/api/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -218,20 +229,24 @@ export default function CheckoutPage() {
             <span>{shippingRupees === 0 ? <span style={{ color: "green" }}>Free</span> : formatPrice(shippingRupees)}</span>
           </div>
           <div className="checkout-summary-line" style={{ borderTop: "1.5px solid var(--line)", marginTop: 8, paddingTop: 10, fontWeight: 700 }}>
-            <span>Total</span>
+            <span>Order total</span>
             <span>{formatPrice(totalRupees)}</span>
           </div>
           {paymentMethod === "COD" && (
-            <div className="checkout-summary-line" style={{ color: "var(--grip)", marginTop: 8 }}>
-              <span>COD advance now</span>
-              <span>{formatPrice(Math.min(totalRupees, 100))}</span>
-            </div>
-          )}
-          {paymentMethod === "COD" && totalRupees > 100 && (
-            <div className="checkout-summary-line">
-              <span>Cash due on delivery</span>
-              <span>{formatPrice(totalRupees - 100)}</span>
-            </div>
+            <>
+              <div className="checkout-summary-line" style={{ color: "var(--grip)", marginTop: 8 }}>
+                <span>COD handling fee (pay now)</span>
+                <span>{formatPrice(COD_HANDLING_FEE_RUPEES)}</span>
+              </div>
+              <div className="checkout-summary-line">
+                <span>Cash due on delivery</span>
+                <span>{formatPrice(totalRupees)}</span>
+              </div>
+              <div className="checkout-summary-line" style={{ borderTop: "1.5px solid var(--line)", marginTop: 8, paddingTop: 10, fontWeight: 700 }}>
+                <span>You'll pay in total</span>
+                <span>{formatPrice(codGrandTotal)}</span>
+              </div>
+            </>
           )}
 
         </div>
@@ -301,9 +316,9 @@ export default function CheckoutPage() {
               Cash on delivery
             </label>
             <p className={`payment-method-note${paymentMethod === "COD" ? " payment-method-note-visible" : ""}`}>
-              Pay a ₹100 confirmation advance now. The remaining balance is
-              payable at delivery. The advance is non-refundable if the order
-              is not completed.
+              Pay a {formatPrice(COD_HANDLING_FEE_RUPEES)} COD handling fee now to confirm your order.
+              The full order amount of {formatPrice(totalRupees)} is payable in cash at
+              delivery. The handling fee is non-refundable if from your side the order is not completed.
             </p>
           </div>
 
@@ -311,7 +326,7 @@ export default function CheckoutPage() {
             {loading
               ? "Processing…"
               : paymentMethod === "COD"
-              ? `Pay ${formatPrice(Math.min(totalRupees, 100))} advance`
+              ? `Pay ${formatPrice(COD_HANDLING_FEE_RUPEES)} handling fee`
               : `Pay ${formatPrice(totalRupees)} with Razorpay`}
           </button>
         </form>

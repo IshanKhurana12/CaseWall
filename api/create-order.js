@@ -100,7 +100,15 @@ export default async function handler(req, res) {
     // Firestore stores amounts in RUPEES. Razorpay still needs paise,
     // so we keep computing the paise versions too, only for the
     // Razorpay API call and the response below (unchanged behavior).
-    const { resolvedItems, itemsAmountPaise, shippingPaise, totalAmountPaise, paymentAmountPaise, codAmountPaise } = await db.runTransaction(async (tx) => {
+    const {
+      resolvedItems,
+      itemsAmountPaise,
+      shippingPaise,
+      totalAmountPaise,
+      paymentAmountPaise,
+      codAmountPaise,
+      grandTotalPaise,
+    } = await db.runTransaction(async (tx) => {
       let itemsAmountRupees = 0;
       const resolved = [];
       // key = variantRef.path → { variantRef, currentReserved, reserveQty }
@@ -186,6 +194,11 @@ export default async function handler(req, res) {
       const shippingRupees = discountedItemsAmount >= SHIPPING_FREE_THRESHOLD_RUPEES ? 0 : SHIPPING_RATE_RUPEES;
 
       // Rounded rupee values — these are what get stored in Firestore.
+      // `amount` is (and remains) the ORDER VALUE: items - discount + shipping.
+      // It is NOT the grand total the customer ultimately pays for COD orders
+      // (that's `grandTotal`, added below) — shiprocket.js and the Shadowfax
+      // admin route both read `amount`/`itemsAmount` expecting order value,
+      // so its meaning is intentionally left unchanged here.
       const itemsAmountRupeesRounded = Math.round(itemsAmountRupees * 100) / 100;
       const discountAmountRounded = Math.round(discountAmount * 100) / 100;
       const shippingRupeesRounded = Math.round(shippingRupees * 100) / 100;
@@ -196,14 +209,28 @@ export default async function handler(req, res) {
       const discountAmountPaiseLocal = Math.round(discountAmountRounded * 100);
       const shippingPaiseLocal = Math.round(shippingRupeesRounded * 100);
       const totalPaiseLocal = itemsAmountPaiseLocal - discountAmountPaiseLocal + shippingPaiseLocal;
-      const codAdvanceRupees = Number(process.env.COD_ADVANCE_RUPEES || 100);
-      const totalRupeesLocal = totalPaiseLocal / 100;
+      const totalRupeesLocal = totalPaiseLocal / 100; // order value, same number as totalRupeesRounded
+
+      // COD handling fee: a flat charge collected ONLINE upfront when COD is
+      // chosen. The full order value remains due on delivery (unlike the old
+      // "advance" model, where a portion of the order value itself was
+      // collected online and the remainder was due on delivery).
+      const codHandlingFeeRupees = Number(process.env.COD_HANDLING_FEE_RUPEES || 50);
+
       const paymentRupees = normalizedPaymentMethod === "COD"
-        ? Math.min(totalRupeesLocal, Math.max(0, codAdvanceRupees))
-        : totalRupeesLocal;
+        ? Math.max(0, codHandlingFeeRupees) // fee only, charged online now
+        : totalRupeesLocal;                  // full order value, charged online
+
       const codDueRupees = normalizedPaymentMethod === "COD"
-        ? Math.max(0, totalRupeesLocal - paymentRupees)
+        ? totalRupeesLocal // full order value, due on delivery
         : 0;
+
+      // What the customer pays in total across both legs (online + on
+      // delivery). Only used for display/records — no other file reads this.
+      const grandTotalRupeesLocal = normalizedPaymentMethod === "COD"
+        ? totalRupeesLocal + codHandlingFeeRupees
+        : totalRupeesLocal;
+      const grandTotalRupeesRounded = Math.round(grandTotalRupeesLocal * 100) / 100;
 
       tx.set(orderRef, {
         items: resolved,
@@ -219,16 +246,24 @@ export default async function handler(req, res) {
           state: String(address.state).slice(0, 100),
           pincode: String(address.pincode),
         },
-        // Stored in RUPEES (not paise).
+        // Stored in RUPEES (not paise). `amount` = order value (unchanged meaning).
         amount: totalRupeesRounded,
         itemsAmount: itemsAmountRupeesRounded,
         discountAmount: discountAmountRounded,
         shippingAmount: shippingRupeesRounded,
         couponCode: activeDiscount ? String(activeDiscount.code).toUpperCase() : null,
         paymentMethod: normalizedPaymentMethod,
+        // paymentAmount = what's charged online right now (fee-only for COD).
         paymentAmount: Math.round(paymentRupees * 100) / 100,
+        // codAmount = what's due on delivery (full order value for COD).
         codAmount: Math.round(codDueRupees * 100) / 100,
+        // COD handling fee, stored explicitly (0 for prepaid orders).
+        codHandlingFee: normalizedPaymentMethod === "COD" ? Math.round(codHandlingFeeRupees * 100) / 100 : 0,
+        // Kept for backward compatibility with anything still reading this —
+        // now equal to paymentAmount (the fee) rather than a partial advance.
         codAdvanceAmount: normalizedPaymentMethod === "COD" ? Math.round(paymentRupees * 100) / 100 : 0,
+        // Total the customer pays overall (online + on delivery). Display/records only.
+        grandTotal: grandTotalRupeesRounded,
         currency: "INR",
         status: "reserved",
         reservedUntil: reservationUntil,
@@ -245,6 +280,7 @@ export default async function handler(req, res) {
         totalAmountPaise: Math.max(0, totalPaiseLocal),
         paymentAmountPaise: Math.max(0, Math.round(paymentRupees * 100)),
         codAmountPaise: Math.max(0, Math.round(codDueRupees * 100)),
+        grandTotalPaise: Math.max(0, Math.round(grandTotalRupeesRounded * 100)),
       };
     });
 
@@ -298,6 +334,7 @@ export default async function handler(req, res) {
       codAmount: codAmountPaise,
       itemsAmount: itemsAmountPaise,
       shippingAmount: shippingPaise,
+      grandTotal: grandTotalPaise,
       currency: "INR",
       keyId: process.env.RAZORPAY_KEY_ID,
       reservedUntil: reservationUntil,
