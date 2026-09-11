@@ -91,13 +91,13 @@ export default function ReturnPolicy() {
         <section className="policy-section">
           <h2>Cash on delivery orders</h2>
           <p>
-            For COD orders, a <strong>₹100 advance payment</strong> is
+            For COD orders, a <strong>₹50 charget</strong> is
             required to confirm and dispatch the order. The remaining balance
             must be paid to the delivery partner when the order is delivered.
           </p>
           <p>
             If you refuse delivery, fail to pay the remaining COD balance, or
-            otherwise do not complete the order, the ₹100 advance will be
+            otherwise do not complete the order, the ₹50 charge will be
             <strong> retained as a cancellation and handling charge</strong>.
             It will not be refunded or issued as store credit.
           </p>

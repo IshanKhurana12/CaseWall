@@ -316,9 +316,7 @@ export default function CheckoutPage() {
               Cash on delivery
             </label>
             <p className={`payment-method-note${paymentMethod === "COD" ? " payment-method-note-visible" : ""}`}>
-              Pay a {formatPrice(COD_HANDLING_FEE_RUPEES)} COD handling fee now to confirm your order.
-              The full order amount of {formatPrice(totalRupees)} is payable in cash at
-              delivery. The handling fee is non-refundable if from your side the order is not completed.
+              Extra {formatPrice(COD_HANDLING_FEE_RUPEES)} charge.
             </p>
           </div>
 
