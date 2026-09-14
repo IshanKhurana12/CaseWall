@@ -114,7 +114,13 @@ const CITIES = [
   "Chennai", "Kolkata", "Ahmedabad", "Chandigarh", "Lucknow", "Indore",
 ];
 
-const ACTIONS = ["just purchased", "just bought", "just added to cart"];
+const ACTIONS = [
+  "is viewing this",
+  "just viewed this",
+  "is checking this out",
+  "is browsing this",
+  "just opened this",
+];
 
 function randomFrom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -199,7 +205,7 @@ export default function PurchaseNotifications({ products = [], enabled = true })
             {current.price && <span className="purchase-notif-price"> · {current.price}</span>}
           </div>
           <div className="purchase-notif-meta">
-            <span className="purchase-notif-verified">&#10003; Verified order</span>
+            <span className="purchase-notif-verified">&#10003; On this page</span>
             <span>&middot;</span>
             <span>{current.ago}</span>
           </div>
