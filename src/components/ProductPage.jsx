@@ -8,7 +8,7 @@ import "../productPage.css";
 import FAQSection from "../FAQSection";
 import NotifyModal from "./NotifyModal";
 import Footer from "./Footer";
-
+import LiveViewerCount from "./Liveviewercount";
 
 function formatPrice(value, currency = "INR") {
   if (value === undefined || value === null || value === "") return null;
@@ -322,9 +322,13 @@ export default function ProductPage() {
             {selectedVariant?.model && <p className="card-model">{selectedVariant.model}</p>}
             <h1 className="pp-name">{product.name}</h1>
 
+                  <LiveViewerCount />
+                  
             <div className="pp-badge-row" aria-label="Product benefits">
               <span className="pp-cod-badge">COD available</span>
             </div>
+
+      
 
             {jewelleryTypes.length > 0 && (
               <div className="pp-jewellery-types">

@@ -11,6 +11,7 @@ import { useCart } from "../context/CartContext";
 import Footer from "./Footer";
 import { getCategoryLabel, getProductCategoryValues } from "../lib/discounts";
 import OfferCarousel from "./OfferCarousel";
+import PurchaseNotifications from "./Purchasenotifications";
 
 const PAGE_SIZE = 8;
 
@@ -272,6 +273,8 @@ export default function CasesPage() {
           </nav>
         </div>
       </header>
+
+       <PurchaseNotifications products={products} />
 
       <main className="content">
         {hasAntiYellowProducts && (
