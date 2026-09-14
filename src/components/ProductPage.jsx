@@ -198,7 +198,7 @@ export default function ProductPage() {
       <div className="page">
         <div className="state-block">
           <p className="state-title">{status === "notfound" ? "Couldn't find that cover." : "Something went wrong."}</p>
-          <Link to="/" className="pp-back-link">← Back to {STORE_NAME}</Link>
+           <button onClick={() => navigate(-1)}  className="pp-back-link">← Back to {STORE_NAME}</button>
         </div>
       </div>
     );
@@ -290,7 +290,7 @@ export default function ProductPage() {
   return (
     <div className="page">
       <div className="pp-wrap">
-        <Link to="/" className="pp-back-link">← Back to {STORE_NAME}</Link>
+        <button  onClick={() => navigate(-1)}  className="pp-back-link">← Back to {STORE_NAME}</button>
 
         <div className="pp-grid">
           <div className="pp-gallery">

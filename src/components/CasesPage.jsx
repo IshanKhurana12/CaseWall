@@ -6,7 +6,7 @@ import ProductGrid from "./ProductGrid";
 import "../App.css";
 import "../jwelleryStyles.css";
 import JewelryCollection from "./JewelryCollection";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import Footer from "./Footer";
 import { getCategoryLabel, getProductCategoryValues } from "../lib/discounts";
@@ -47,9 +47,26 @@ export default function CasesPage() {
   const [activeModel, setActiveModel] = useState("Filter Models");
   const [search, setSearch] = useState("");
   const [view, setView] = useState("cases"); // "cases" | "jewelry"
-  const [page, setPage] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("featured");
+
+  // Page number lives in the URL (?page=3) instead of local state, so it
+  // survives navigating to a product page and back (no remount reset).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = Number(searchParams.get("page")) || 1;
+
+  const setPage = (updater) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        const current = Number(prev.get("page")) || 1;
+        const newPage = typeof updater === "function" ? updater(current) : updater;
+        next.set("page", String(newPage));
+        return next;
+      },
+      { replace: true } // don't spam browser history on every page click
+    );
+  };
 
   // "cases" (default) -> only isJewellery !== true
   // "jewellery"        -> only isJewellery === true
@@ -151,17 +168,24 @@ export default function CasesPage() {
     return sorted;
   }, [products, activeModel, search, categoryFilter, showModelFilter, selectedCategory, sortBy]);
 
-  // Reset to page 1 whenever the active filters/search change the result set
-  useEffect(() => {
-    setPage(1);
-  }, [activeModel, search, categoryFilter, selectedCategory, sortBy]);
+  // NOTE: page resets to 1 are triggered inline, right where each filter is
+  // changed (see handleCategoryChange and the input/select onChange props
+  // below) — NOT via a useEffect watching these values. A mount-reacting
+  // effect can't reliably tell "the page just mounted with ?page=3 in the
+  // URL" apart from "a filter actually changed", especially under
+  // React.StrictMode's double-invoke in dev, which would silently reset
+  // the restored page back to 1 every time.
 
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
 
-  // Clamp page if it's now out of range (e.g. products array shrank)
+  // Clamp page if it's now out of range (e.g. products array shrank).
+  // Gated on status === "ready" so this doesn't fire while products are
+  // still loading (visible.length is 0 -> totalPages is 1 -> would wrongly
+  // clamp a page restored from the URL back down to 1 before data arrives).
   useEffect(() => {
+    if (status !== "ready") return;
     if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+  }, [page, totalPages, status]);
 
   useEffect(() => {
     const isMobile = window.innerWidth < 768;
@@ -186,6 +210,7 @@ export default function CasesPage() {
   const handleCategoryChange = (next) => {
     setCategoryFilter(next);
     setSelectedCategory("all");
+    setPage(1);
     // Reset model filter when it's no longer relevant (e.g. switching to Jewellery)
     if (next === "jewellery") {
       setActiveModel("Filter Models");
@@ -302,7 +327,10 @@ export default function CasesPage() {
               <select
                 className="model-select"
                 value={activeModel}
-                onChange={(e) => setActiveModel(e.target.value)}
+                onChange={(e) => {
+                  setActiveModel(e.target.value);
+                  setPage(1);
+                }}
                 aria-label="Filter by phone model"
               >
                 {models.map((m) => (
@@ -320,13 +348,19 @@ export default function CasesPage() {
               type="search"
               placeholder="Search covers…"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               aria-label="Search products"
             />
             <select
               className="model-select sort-select"
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                setPage(1);
+              }}
               aria-label="Sort products"
             >
               <option value="featured">Sort: Featured</option>
@@ -342,7 +376,10 @@ export default function CasesPage() {
             <button
               type="button"
               className={"catalog-filter-button" + (selectedCategory === "all" ? " catalog-filter-button-active" : "")}
-              onClick={() => setSelectedCategory("all")}
+              onClick={() => {
+                setSelectedCategory("all");
+                setPage(1);
+              }}
             >
               All styles
             </button>
@@ -351,7 +388,10 @@ export default function CasesPage() {
                 key={option.value}
                 type="button"
                 className={"catalog-filter-button" + (selectedCategory === option.value ? " catalog-filter-button-active" : "")}
-                onClick={() => setSelectedCategory(option.value)}
+                onClick={() => {
+                  setSelectedCategory(option.value);
+                  setPage(1);
+                }}
               >
                 {option.label}
               </button>
@@ -402,14 +442,14 @@ export default function CasesPage() {
 
             {totalPages > 1 && (
               <nav className="pagination" aria-label="Pagination">
-           <button
-  className="page-btn page-btn-nav"
-  onClick={() => setPage((p) => Math.max(1, p - 1))}
-  disabled={page === 1}
-  aria-label="Previous page"
->
-  ‹ Prev
-</button>
+                <button
+                  className="page-btn page-btn-nav"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  aria-label="Previous page"
+                >
+                  ‹ Prev
+                </button>
 
                 {getPageNumbers(page, totalPages).map((p, i) =>
                   p === "…" ? (
@@ -427,14 +467,14 @@ export default function CasesPage() {
                     </button>
                   )
                 )}
-<button
-  className="page-btn page-btn-nav"
-  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-  disabled={page === totalPages}
-  aria-label="Next page"
->
-  Next ›
-</button>
+                <button
+                  className="page-btn page-btn-nav"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  aria-label="Next page"
+                >
+                  Next ›
+                </button>
               </nav>
             )}
           </>
