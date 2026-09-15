@@ -323,7 +323,7 @@ export default function ProductPage() {
             <h1 className="pp-name">{product.name}</h1>
 
                   <LiveViewerCount />
-                  
+
             <div className="pp-badge-row" aria-label="Product benefits">
               <span className="pp-cod-badge">COD available</span>
             </div>
@@ -624,7 +624,7 @@ export default function ProductPage() {
             <ul className="pp-review-list">
               {visibleReviews.map((review, i) => (
                 <li className="pp-review" key={i}>
-                  {review.name && <p className="pp-review-author">customer name: {review.name}</p>}
+                  {review.name && <p className="pp-review-author">{review.name}</p>}
                   <p className="pp-review-text">{review.text}</p>
                   {review.images.length > 0 && (
                     <div className="pp-review-images">
