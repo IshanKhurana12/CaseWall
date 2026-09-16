@@ -354,7 +354,7 @@
 
 /* Circular initial badge — reads the letter from the data-initial
    attribute set in JSX, so no extra markup is needed. */
-.pp-review-author::before {
+/* .pp-review-author::before {
   content: attr(data-initial);
   display: inline-flex;
   align-items: center;
@@ -369,7 +369,7 @@
   font-weight: 700;
   flex-shrink: 0;
   text-transform: uppercase;
-}
+} */
 
 .pp-review-text {
   font-family: var(--font-body);
@@ -755,4 +755,112 @@
   color: var(--ink);
   font-weight: 500;
   text-align: right;
+}
+
+.pp-reviews-gallery {
+  position: relative;
+}
+
+.pp-review-scroll {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 8px 4px 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pp-review-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+.pp-review-scroll::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 4px;
+}
+
+.pp-review-card {
+  flex: 0 0 280px;
+  scroll-snap-align: start;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pp-review-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pp-review-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #555;
+  flex-shrink: 0;
+}
+
+.pp-review-author {
+  font-weight: 600;
+  margin: 0;
+  font-size: 14px;
+}
+
+.pp-review-stars {
+  color: #f5a623;
+  font-size: 13px;
+}
+
+.pp-review-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  margin: 0;
+}
+
+.pp-review-images {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pp-review-thumb-btn {
+  border: none;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.pp-review-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  display: block;
+}
+
+.pp-review-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.pp-review-lightbox img {
+  max-width: 90%;
+  max-height: 90%;
+  border-radius: 8px;
 }

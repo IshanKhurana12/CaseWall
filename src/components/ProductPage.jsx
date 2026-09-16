@@ -618,40 +618,58 @@ export default function ProductPage() {
             </form>
           )}
 
-          {visibleReviews.length === 0 ? (
-            <p className="muted">No reviews yet.</p>
-          ) : (
-            <ul className="pp-review-list">
-              {visibleReviews.map((review, i) => (
-                <li className="pp-review" key={i}>
-                  {review.name && <p className="pp-review-author">{review.name}</p>}
-                  <p className="pp-review-text">{review.text}</p>
-                  {review.images.length > 0 && (
-                    <div className="pp-review-images">
-                      {review.images.map((src, imgI) => (
-                        <button
-                          key={imgI}
-                          type="button"
-                          className="pp-review-thumb-btn"
-                          onClick={() => setActiveReviewImage(src)}
-                          aria-label="View review photo"
-                        >
-                          <img src={src} alt="" className="pp-review-thumb" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </li>
+       <div className="pp-reviews-gallery">
+  {visibleReviews.length === 0 ? (
+    <p className="muted">No reviews yet.</p>
+  ) : (
+    <div className="pp-review-scroll">
+      {visibleReviews.map((review, i) => (
+        <div className="pp-review-card" key={i}>
+          <div className="pp-review-header">
+            <div className="pp-review-avatar">
+              {review.name ? review.name.charAt(0).toUpperCase() : "?"}
+            </div>
+            <div>
+              {review.name && <p className="pp-review-author">{review.name}</p>}
+              {review.rating && (
+                <div className="pp-review-stars">
+                  {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <p className="pp-review-text">{review.text}</p>
+
+          {review.images.length > 0 && (
+            <div className="pp-review-images">
+              {review.images.map((src, imgI) => (
+                <button
+                  key={imgI}
+                  type="button"
+                  className="pp-review-thumb-btn"
+                  onClick={() => setActiveReviewImage(src)}
+                  aria-label="View review photo"
+                >
+                  <img src={src} alt="" className="pp-review-thumb" />
+                </button>
               ))}
-            </ul>
+            </div>
           )}
         </div>
+      ))}
+    </div>
+  )}
+</div>
 
-        {activeReviewImage && (
-          <div className="pp-review-lightbox" onClick={() => setActiveReviewImage(null)}>
-            <img src={activeReviewImage} alt="Review" />
-          </div>
-        )}
+{activeReviewImage && (
+  <div className="pp-review-lightbox" onClick={() => setActiveReviewImage(null)}>
+    <img src={activeReviewImage} alt="Review" />
+  </div>
+)}
+        </div>
+
+        
       </div>
       <Footer />
     </div>
