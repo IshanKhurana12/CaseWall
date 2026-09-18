@@ -763,24 +763,13 @@
 
 .pp-review-scroll {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
   padding: 8px 4px 16px;
-  -webkit-overflow-scrolling: touch;
-}
-
-.pp-review-scroll::-webkit-scrollbar {
-  height: 8px;
-}
-.pp-review-scroll::-webkit-scrollbar-thumb {
-  background: #ddd;
-  border-radius: 4px;
 }
 
 .pp-review-card {
   flex: 0 0 280px;
-  scroll-snap-align: start;
   background: #fff;
   border: 1px solid #eee;
   border-radius: 12px;
