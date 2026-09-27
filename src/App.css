@@ -727,7 +727,7 @@
 .page:has(.store-header) .card-rating { margin-bottom: 10px; }
 .page:has(.store-header) .card-price { padding: 0; border: 0; background: transparent; font-family: var(--font-body); font-size: 14px; }
 .page:has(.store-header) .card-mrp { font-size: 12px; }
-.page:has(.store-header) .card-footer { align-items: flex-end; }
+.page:has(.store-header) .card-footer { align-items: flex-start; }
 .page:has(.store-header) .card-cta-row { gap: 7px; }
 .page:has(.store-header) .cart-button,
 .page:has(.store-header) .buy-button { min-height: 34px; padding: 8px 10px; border-radius: 2px; font-size: 11px; }
