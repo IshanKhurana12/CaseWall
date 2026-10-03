@@ -13,7 +13,7 @@ import { getCategoryLabel, getProductCategoryValues } from "../lib/discounts";
 import OfferCarousel from "./OfferCarousel";
 import PurchaseNotifications from "./Purchasenotifications";
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 20;
 
 // Normalizes casing/whitespace so "Iphone 15 Pro" and "iPhone 15 Pro"
 // are treated as the same model everywhere (dropdown + filtering).
