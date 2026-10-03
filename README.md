@@ -104,6 +104,15 @@ The `/api` functions only run on Vercel (or via `vercel dev`) — plain `vite de
 only the frontend, so checkout requires deploying to Vercel or running `vercel dev`
 locally with the env vars from step 4 set.
 
+### Product image performance
+
+The catalog and product pages defer off-screen gallery, review, and cart images, while
+prioritizing the first catalog image and product-page hero image. Image file size still
+matters: resize product photos to about 1200 px on the longest side for the full product
+gallery, and upload compressed WebP or JPEG files (ideally under 200 KB each). Avoid
+uploading original phone-camera photos; the site uses the provided image URLs as-is and
+does not currently generate resized image variants.
+
 ## 6. Deploy it
 
 This app depends on serverless functions (`/api`), so deploy it to **Vercel**:

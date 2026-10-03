@@ -160,7 +160,7 @@ export default function CartPage() {
               {items.map((item) => (
                 <div className="cart-row" key={item.key}>
                   <div className="cart-row-image">
-                    {item.image ? <img src={item.image} alt={item.name} /> : <div className="card-media-fallback">No image</div>}
+                    {item.image ? <img src={item.image} alt={item.name} loading="lazy" decoding="async" /> : <div className="card-media-fallback">No image</div>}
                   </div>
                   <div className="cart-row-body">
                     {(item.model || item.color) && (

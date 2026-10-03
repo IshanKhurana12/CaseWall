@@ -40,7 +40,7 @@ function buildWhatsAppLink(product) {
 
 // Renders a 5-star row where each star can be empty, full, or half-filled
 // based on the numeric rating (e.g. 4.47 -> 4 full stars, 1 half star).
-export default function ProductCard({ product }) {
+export default function ProductCard({ product, priority = false }) {
   const navigate = useNavigate();
   const { addItem, items, updateQty } = useCart();
   const [added, setAdded] = useState(false);
@@ -231,7 +231,9 @@ export default function ProductCard({ product }) {
           <img
             src={images[activeIndex]}
             alt={`${product.name ?? "Phone cover"}${hasMultiple ? ` — photo ${activeIndex + 1} of ${images.length}` : ""}`}
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
+            decoding="async"
             draggable={false}
           />
         ) : (

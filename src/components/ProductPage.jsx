@@ -296,7 +296,13 @@ export default function ProductPage() {
           <div className="pp-gallery">
             <div className="pp-main-image">
               {images.length > 0 ? (
-                <img src={images[activeIndex]} alt={product.name} />
+                <img
+                  src={images[activeIndex]}
+                  alt={product.name}
+                  loading="eager"
+                  fetchPriority="high"
+                  decoding="async"
+                />
               ) : (
                 <div className="card-media-fallback">No image</div>
               )}
@@ -311,7 +317,7 @@ export default function ProductPage() {
                     onClick={() => setActiveIndex(i)}
                     aria-label={`Show photo ${i + 1}`}
                   >
-                    <img src={src} alt="" />
+                    <img src={src} alt="" loading="lazy" decoding="async" />
                   </button>
                 ))}
               </div>
@@ -651,7 +657,7 @@ export default function ProductPage() {
                   onClick={() => setActiveReviewImage(src)}
                   aria-label="View review photo"
                 >
-                  <img src={src} alt="" className="pp-review-thumb" />
+                  <img src={src} alt="" className="pp-review-thumb" loading="lazy" decoding="async" />
                 </button>
               ))}
             </div>
@@ -664,7 +670,7 @@ export default function ProductPage() {
 
 {activeReviewImage && (
   <div className="pp-review-lightbox" onClick={() => setActiveReviewImage(null)}>
-    <img src={activeReviewImage} alt="Review" />
+    <img src={activeReviewImage} alt="Review" decoding="async" />
   </div>
 )}
         </div>

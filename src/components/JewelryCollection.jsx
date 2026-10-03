@@ -90,6 +90,7 @@ function JewelryCard({ p }) {
             alt={`${p.name ?? "Jewellery piece"}${hasMultiple ? ` — photo ${activeIndex + 1} of ${images.length}` : ""}`}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
             loading="lazy"
+            decoding="async"
           />
         ) : (
           ICONS[iconKey]
