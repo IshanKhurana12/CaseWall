@@ -1,10 +1,11 @@
 import { use, useEffect, useMemo, useState } from "react";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, orderBy } from "firebase/firestore/lite";
 import { db } from "../firebase";
 import "../App.css";
 
 import "../jwelleryStyles.css";
 import { useNavigate } from "react-router-dom";
+import { responsiveImg } from "../lib/images";
 // ---- Config -----------------------------------------------------------
 const WHATSAPP_NUMBER = "919871335748"; // replace with the real number
 
@@ -86,7 +87,7 @@ function JewelryCard({ p }) {
         {discount && <span className="jw-badge-discount">{discount}% OFF</span>}
         {images.length > 0 ? (
           <img
-            src={images[activeIndex]}
+            {...responsiveImg(images[activeIndex], "(max-width: 760px) 50vw, (max-width: 1100px) 33vw, 300px", 640)}
             alt={`${p.name ?? "Jewellery piece"}${hasMultiple ? ` — photo ${activeIndex + 1} of ${images.length}` : ""}`}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
             loading="lazy"

@@ -1,5 +1,7 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+// Firestore Lite: one-shot reads only, a fraction of the full SDK's size.
+// The order status page needs realtime updates and loads the full SDK itself.
+import { getFirestore } from "firebase/firestore/lite";
 
 // Paste your Firebase project config here (Firebase Console → Project settings → your web app).
 // Better: put these in a .env file and read them via import.meta.env — see README.md.
@@ -12,5 +14,5 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || "YOUR_APP_ID",
 };
 
-const app = initializeApp(firebaseConfig);
+export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);

@@ -13,18 +13,9 @@ export const STORE_TAGLINE = "Cases for phones people actually love";
 // server-side environment variables used by the /api functions.
 export const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
 
-// Shown on the product page, cart, and checkout so customers see it before
-// they pay.
-export const RETURN_POLICY_SHORT =
-  "All sales are final — orders are non-refundable. Replacement only if the item arrives damaged, and only if you recorded an unboxing video.";
-
-export const RETURN_POLICY_FULL = [
-  "All orders are non-refundable. We don't offer cash/UPI refunds or cancellations once an order is placed and paid for.",
-  "The only exception is a damaged item on arrival — in that case we offer a free replacement, not a refund.",
-  "To claim a replacement, you must record a continuous, unedited video from the moment you open the sealed delivery package to fully unboxing the product. The video must clearly show the package's shipping label/AWB number and the damage.",
-  "Replacement claims without an unboxing video showing the damage cannot be accepted.",
-  "Report damage within 24 hours of delivery on WhatsApp with the video attached.",
-];
+// The return/refund policy lives in src/components/Returnpolicy.jsx (the
+// /returnPolicy page). Summaries in src/faqs.js, InfoPages.jsx,
+// OrderStatusPage.jsx, lib/seo.js and scripts/prerender.mjs must match it.
 
 // Shipping configuration (frontend reads VITE_... variables via import.meta.env)
 // Defaults: free for orders >= 500, otherwise flat 80 rupees

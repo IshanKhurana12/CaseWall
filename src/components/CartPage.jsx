@@ -1,11 +1,13 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
-import { doc, getDoc, collection } from "firebase/firestore";
+import { doc, getDoc, collection } from "firebase/firestore/lite";
 import { db } from "../firebase";
-import { RETURN_POLICY_SHORT, STORE_NAME, SHIPPING_RATE_RUPEES, SHIPPING_FREE_THRESHOLD_RUPEES } from "../config";
+import { STORE_NAME, SHIPPING_RATE_RUPEES, SHIPPING_FREE_THRESHOLD_RUPEES } from "../config";
 import "../cartCheckout.css";
 import NotifyModal from "./NotifyModal";
+import useSeo from "../hooks/useSeo";
+import { responsiveImg } from "../lib/images";
 
 function formatPrice(value, currency = "INR") {
   if (value === undefined || value === null || value === "") return "—";
@@ -21,6 +23,7 @@ function formatPrice(value, currency = "INR") {
 }
 
 export default function CartPage() {
+  useSeo({ title: "Your Cart | CASEWALL", path: "/cart", noindex: true });
   const { items, updateQty, removeItem, subtotal, couponCode, couponDiscount, setCouponCode, clearCoupon } = useCart();
   const navigate = useNavigate();
   const [modalMsg, setModalMsg] = React.useState("");
@@ -160,7 +163,7 @@ export default function CartPage() {
               {items.map((item) => (
                 <div className="cart-row" key={item.key}>
                   <div className="cart-row-image">
-                    {item.image ? <img src={item.image} alt={item.name} loading="lazy" decoding="async" /> : <div className="card-media-fallback">No image</div>}
+                    {item.image ? <img {...responsiveImg(item.image, "120px", 320)} alt={item.name} loading="lazy" decoding="async" /> : <div className="card-media-fallback">No image</div>}
                   </div>
                   <div className="cart-row-body">
                     {(item.model || item.color) && (

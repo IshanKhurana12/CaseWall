@@ -1,14 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { doc, getDoc, collection, getDocs } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs } from "firebase/firestore/lite";
 import { db } from "../firebase";
 import { useCart } from "../context/CartContext";
-import { RETURN_POLICY_SHORT, STORE_NAME, WHATSAPP_NUMBER } from "../config";
+import { STORE_NAME, WHATSAPP_NUMBER } from "../config";
 import "../productPage.css";
 import FAQSection from "../FAQSection";
 import NotifyModal from "./NotifyModal";
 import Footer from "./Footer";
-import LiveViewerCount from "./Liveviewercount";
+import useSeo from "../hooks/useSeo";
+import { responsiveImg } from "../lib/images";
+import {
+  breadcrumbJsonLd,
+  canonicalModelName,
+  modelPath,
+  modelsForProduct,
+  productDescription,
+  productImages,
+  productJsonLd,
+  productTitle,
+} from "../lib/seo";
 
 function formatPrice(value, currency = "INR") {
   if (value === undefined || value === null || value === "") return null;
@@ -183,6 +194,28 @@ export default function ProductPage() {
     return existing ? existing.qty : 0;
   }, [items, product, selectedVariant]);
 
+  const seoModels = product ? modelsForProduct(product) : [];
+  useSeo(
+    product
+      ? {
+          title: productTitle(product),
+          description: productDescription(product),
+          path: `/product/${product.id}`,
+          image: productImages(product)[0],
+          jsonLd: [
+            productJsonLd(product, variants),
+            breadcrumbJsonLd([
+              { name: "Home", path: "/" },
+              ...(seoModels.length === 1
+                ? [{ name: `${seoModels[0]} Cases`, path: modelPath(seoModels[0]) }]
+                : []),
+              { name: product.name, path: `/product/${product.id}` },
+            ]),
+          ],
+        }
+      : { path: `/product/${id}`, noindex: status === "notfound" }
+  );
+
   if (status === "loading") {
     return (
       <div className="page">
@@ -297,8 +330,12 @@ export default function ProductPage() {
             <div className="pp-main-image">
               {images.length > 0 ? (
                 <img
-                  src={images[activeIndex]}
-                  alt={product.name}
+                  {...responsiveImg(images[activeIndex], "(max-width: 760px) 100vw, 540px")}
+                  alt={
+                    selectedVariant?.model
+                      ? `${product.name} – ${canonicalModelName(selectedVariant.model)} case`
+                      : product.name
+                  }
                   loading="eager"
                   fetchPriority="high"
                   decoding="async"
@@ -317,7 +354,7 @@ export default function ProductPage() {
                     onClick={() => setActiveIndex(i)}
                     aria-label={`Show photo ${i + 1}`}
                   >
-                    <img src={src} alt="" loading="lazy" decoding="async" />
+                    <img {...responsiveImg(src, "80px", 320)} alt="" loading="lazy" decoding="async" />
                   </button>
                 ))}
               </div>
@@ -325,10 +362,14 @@ export default function ProductPage() {
           </div>
 
           <div className="pp-details">
-            {selectedVariant?.model && <p className="card-model">{selectedVariant.model}</p>}
+            {selectedVariant?.model && (
+              <p className="card-model">
+                <Link to={modelPath(canonicalModelName(selectedVariant.model))} className="pp-model-link">
+                  {canonicalModelName(selectedVariant.model)}
+                </Link>
+              </p>
+            )}
             <h1 className="pp-name">{product.name}</h1>
-
-                  <LiveViewerCount />
 
             <div className="pp-badge-row" aria-label="Product benefits">
               <span className="pp-cod-badge">COD available</span>
@@ -500,18 +541,18 @@ export default function ProductPage() {
     target="_blank"
     rel="noopener noreferrer"
     className="live-preview-btn"
-    aria-label="Follow us on Instagram"
   >
     Visit Instagram →
   </a>
 </div>
 
           <div className="trust-strip">
-  <span>✅ Razorpay Verified Seller</span>
+  <span>🔒 Secure payments via Razorpay</span>
+  <span>💵 Cash on delivery</span>
   <span>↩️ 2-Day Return & Exchange*</span>
-  <span>🚚 Ships All Over India</span>
+  <span>🚚 Dispatch in 24–48 hrs, pan-India</span>
 </div>
-<p className="trust-strip-note">*Conditions apply — see return policy</p>
+<p className="trust-strip-note">*Conditions apply — see <Link to="/returnPolicy">return policy</Link></p>
           </div>
         </div>
 
@@ -657,7 +698,7 @@ export default function ProductPage() {
                   onClick={() => setActiveReviewImage(src)}
                   aria-label="View review photo"
                 >
-                  <img src={src} alt="" className="pp-review-thumb" loading="lazy" decoding="async" />
+                  <img {...responsiveImg(src, "120px", 320)} alt="" className="pp-review-thumb" loading="lazy" decoding="async" />
                 </button>
               ))}
             </div>
@@ -670,7 +711,7 @@ export default function ProductPage() {
 
 {activeReviewImage && (
   <div className="pp-review-lightbox" onClick={() => setActiveReviewImage(null)}>
-    <img src={activeReviewImage} alt="Review" decoding="async" />
+    <img {...responsiveImg(activeReviewImage, "100vw")} alt="Review" decoding="async" />
   </div>
 )}
         </div>

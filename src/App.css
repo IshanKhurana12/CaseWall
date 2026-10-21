@@ -2236,3 +2236,55 @@ body {
     max-width: 230px;
   }
 }
+/* Breadcrumb in the catalog kicker on /cases/:model pages */
+.catalog-kicker a { color: inherit; text-decoration: none; }
+.catalog-kicker a:hover { text-decoration: underline; }
+
+/* "Shop cases by phone model" — crawlable internal links to every model page */
+.model-links { margin: 56px 0 8px; padding-top: 28px; border-top: 1px solid var(--line, #e5e5e5); }
+.model-links h2 { margin: 0 0 14px; font-size: 18px; }
+.model-links ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.model-links a {
+  display: inline-block;
+  padding: 7px 12px;
+  border: 1px solid var(--line, #e5e5e5);
+  border-radius: 999px;
+  color: var(--slate, #555);
+  font-size: 13px;
+  text-decoration: none;
+}
+.model-links a:hover,
+.model-links a[aria-current="page"] { border-color: currentColor; color: var(--ink, #111); }
+
+/* Carousel/photo dots: 24px tap targets (accessibility + Lighthouse) while the
+   visible dot stays small — padding enlarges the button, and the background is
+   painted only in the content box. !important because the many dot colour
+   rules use the `background` shorthand, which would reset background-clip. */
+.hero-offer-dot,
+.media-dot {
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  padding: 8.5px;
+  background-clip: content-box !important;
+}
+.media-dot { padding: 9px; }
+/* Grow the active dot by shrinking its padding, not with transform: scale(),
+   which would also grow the 24px box over its neighbour's tap area. */
+.hero-offer-dot-active,
+.top-offer-section .hero-offer-dot-active { transform: none; padding: 7.5px; }
+.media-dot-active { transform: none; padding: 8px; }
+.hero-offer-dots { gap: 0; margin: 0 0 -8.5px -8.5px; }
+.media-dots { gap: 0; margin-bottom: -9px; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

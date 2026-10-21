@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
-import { RAZORPAY_KEY_ID, RETURN_POLICY_SHORT, STORE_NAME, SHIPPING_RATE_RUPEES, SHIPPING_FREE_THRESHOLD_RUPEES } from "../config";
+import { RAZORPAY_KEY_ID, STORE_NAME, SHIPPING_RATE_RUPEES, SHIPPING_FREE_THRESHOLD_RUPEES } from "../config";
 import { loadRazorpayScript } from "../lib/loadRazorpay";
 import "../cartCheckout.css";
+import useSeo from "../hooks/useSeo";
 
 // Must match COD_HANDLING_FEE_RUPEES on the server (create-order.js / env
 // var). This is only used for display here — the actual amount charged is
@@ -31,6 +32,7 @@ function formatPrice(value) {
 }
 
 export default function CheckoutPage() {
+  useSeo({ title: "Checkout | CASEWALL", path: "/checkout", noindex: true });
   const { items, subtotal, clearCart, couponCode, couponDiscount } = useCart();
   const navigate = useNavigate();
   const discountedSubtotal = Math.max(0, subtotal - (Number(couponDiscount) || 0));

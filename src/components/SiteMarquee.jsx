@@ -1,3 +1,5 @@
+import { SHIPPING_FREE_THRESHOLD_RUPEES } from "../config";
+
 export default function SiteMarquee() {
   const items = [
     {
@@ -16,17 +18,16 @@ export default function SiteMarquee() {
     },
     {
       key: "delivery",
-      content: <>NOTICE: Free Delivery on all orders above ₹350.</>,
+      content: <>NOTICE: Free Delivery on all orders above ₹{SHIPPING_FREE_THRESHOLD_RUPEES}.</>,
       href: null,
     },
   ];
 
   return (
-    <div className="site-marquee" role="status" aria-live="polite">
+    <div className="site-marquee">
       <div className="site-marquee-inner">
         <div className="site-marquee-track">
-          {items.map((item, index) => {
-            const isFirst = index === 0;
+          {items.map((item) => {
             const body = item.href ? (
               <a
                 href={item.href}
@@ -41,11 +42,7 @@ export default function SiteMarquee() {
             );
 
             return (
-              <span
-                key={item.key}
-                className="site-marquee-text"
-                aria-hidden={isFirst ? undefined : true}
-              >
+              <span key={item.key} className="site-marquee-text">
                 {body}
               </span>
             );

@@ -3,7 +3,7 @@
   --paper: #f4f0e6;
   --board: #fefefe;
   --board-dot: #c7bfa9;
-  --signal: #e1552b;
+  --signal: #bd4420; /* was #e1552b — darkened to pass WCAG AA text contrast */
   --grip: #15693f;
   --grip-bright: #1e8f55;
   --slate: #726a5a;

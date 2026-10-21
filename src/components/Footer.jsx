@@ -16,12 +16,19 @@ export default function Footer() {
             CASEWALL
           </a>
           <p>Questions about an order? Our team replies fastest on WhatsApp.</p>
+          <p>
+            Call / WhatsApp: <a href="tel:+919871335748">+91 98713 35748</a>
+            <br />
+            Instagram:{" "}
+            <a href="https://www.instagram.com/thecasewall" target="_blank" rel="noopener noreferrer">
+              @thecasewall
+            </a>
+          </p>
           <a
             className="wa-button wa-button-primary"
             href={helpLink}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Ask a question on WhatsApp"
             style={{ marginTop: "20px" }}
           >
             <WhatsAppIcon />
@@ -35,7 +42,8 @@ export default function Footer() {
           <ul className="footer-links footer-note-list">
             <li>Orders dispatch within 24–48 hrs</li>
             <li>Delivered in 3–7 business days, pan-India</li>
-            <li>Tracking link shared once shipped</li>
+            <li>Cash on delivery available</li>
+            <li>Secure payments via Razorpay — UPI, cards, net banking</li>
           </ul>
         </div>
 
@@ -43,10 +51,29 @@ export default function Footer() {
         <div className="footer-policies-col">
           <p className="footer-col-title" style={{marginBottom:10}} >Policies</p>
           <ul className="footer-links">
-           
+            <li>
+              <a className="footer-link" href="/about">
+                About &amp; Contact
+              </a>
+            </li>
+            <li>
+              <a className="footer-link" href="/orderstatus">
+                Track Your Order
+              </a>
+            </li>
+            <li>
+              <a className="footer-link" href="/shipping-policy">
+                Shipping Policy
+              </a>
+            </li>
             <li>
               <a className="footer-link" href="/returnPolicy">
                 Return &amp; Refund Policy
+              </a>
+            </li>
+            <li>
+              <a className="footer-link" href="/privacy-policy">
+                Privacy Policy
               </a>
             </li>
             <li>
@@ -66,6 +93,9 @@ export default function Footer() {
       <div className="footer-bottom">
         <p>© {new Date().getFullYear()} Casewall. All rights reserved.</p>
         <ul className="footer-bottom-links">
+          <li>
+            <a href="/privacy-policy">Privacy</a>
+          </li>
           <li>
             <a href="/returnPolicy">Returns &amp; Refunds</a>
           </li>

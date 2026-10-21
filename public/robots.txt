@@ -1,4 +1,34 @@
+# casewall.in — all search engines and AI assistants are welcome to index the store.
 User-agent: *
+Allow: /
+Disallow: /cart
+Disallow: /checkout
+Disallow: /order/
+Disallow: /api/
+
+# AI search / answer engines (explicitly allowed so we can be cited)
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
 Allow: /
 
 Sitemap: https://casewall.in/sitemap.xml

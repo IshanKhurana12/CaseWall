@@ -3,6 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { WHATSAPP_NUMBER } from "../config";
 import { useCart } from "../context/CartContext";
 import NotifyModal from "./NotifyModal";
+import { responsiveImg } from "../lib/images";
+
+// Card image width: 2 columns on phones, 3 on tablets, 4 on desktop.
+const CARD_SIZES = "(max-width: 760px) 50vw, (max-width: 1100px) 33vw, 300px";
 
 
 function formatPrice(value, currency = "INR") {
@@ -208,9 +212,6 @@ export default function ProductCard({ product, priority = false }) {
 
       <div
         className="card-media"
-        role="link"
-        tabIndex={0}
-        aria-label={`View ${product.name ?? "this cover"}`}
         onClick={(e) => {
           // Skip navigation if the tap was actually a swipe drag.
           if (isSwiping) {
@@ -219,9 +220,6 @@ export default function ProductCard({ product, priority = false }) {
           }
           navigate(`/product/${product.id}`);
         }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") navigate(`/product/${product.id}`);
-        }}
         onTouchStart={hasMultiple ? handleTouchStart : undefined}
         onTouchMove={hasMultiple ? handleTouchMove : undefined}
         onTouchEnd={hasMultiple ? handleTouchEnd : undefined}
@@ -229,7 +227,7 @@ export default function ProductCard({ product, priority = false }) {
       >
         {images.length > 0 ? (
           <img
-            src={images[activeIndex]}
+            {...responsiveImg(images[activeIndex], CARD_SIZES, 640)}
             alt={`${product.name ?? "Phone cover"}${hasMultiple ? ` — photo ${activeIndex + 1} of ${images.length}` : ""}`}
             loading={priority ? "eager" : "lazy"}
             fetchPriority={priority ? "high" : "auto"}
@@ -288,7 +286,7 @@ export default function ProductCard({ product, priority = false }) {
           {!outOfStock && (
             <div className="card-cta-row">
               {hasVariants ? (
-                <button className="buy-button" onClick={goToProduct} aria-label={`Choose options for ${product.name ?? "this cover"}`}>
+                <button className="buy-button" onClick={goToProduct} aria-label={`Choose Options – ${product.name ?? "this cover"}`}>
                   Choose Options
                 </button>
               ) : (
@@ -325,12 +323,12 @@ export default function ProductCard({ product, priority = false }) {
                       </button>
                     </div>
                   ) : (
-                    <button className="cart-button" onClick={handleAddToCart} aria-label={`Add ${product.name ?? "this cover"} to cart`}>
+                    <button className="cart-button" onClick={handleAddToCart} aria-label={`${added ? "Added" : "Add to Cart"} – ${product.name ?? "this cover"}`}>
                       {added ? "Added ✓" : "Add to Cart"}
                     </button>
                   )}
 
-                  <button className="buy-button" onClick={handleBuyNow} aria-label={`Buy ${product.name ?? "this cover"} now`}>
+                  <button className="buy-button" onClick={handleBuyNow} aria-label={`Buy Now – ${product.name ?? "this cover"}`}>
                     Buy Now
                   </button>
                 </>

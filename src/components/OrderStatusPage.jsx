@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "../firebase";
+import { doc, getFirestore, onSnapshot } from "firebase/firestore";
+import { app } from "../firebase";
+
+// Full SDK (not Lite) for live onSnapshot updates; only this page pays for it.
+const db = getFirestore(app);
 import { STORE_NAME, WHATSAPP_NUMBER } from "../config";
 import "../cartCheckout.css";
+import useSeo from "../hooks/useSeo";
 
 function formatPrice(value) {
   if (value === undefined || value === null) return "—";
@@ -21,6 +25,7 @@ function formatPrice(value) {
 // confirmed, so "payment in process" always reads the true, verified state
 // rather than something the browser assumed after a redirect.
 export default function OrderStatusPage() {
+  useSeo({ title: "Order Status | CASEWALL", noindex: true });
   const { orderId } = useParams();
   const [order, setOrder] = useState(null);
   const [state, setState] = useState("loading"); // loading | found | notfound | error
@@ -218,9 +223,10 @@ export default function OrderStatusPage() {
           <div className="order-status-track">
             <p style={{ margin: "0 0 6px", fontWeight: 600 }}>Remember for delivery day:</p>
             <p style={{ margin: 0, fontSize: 13.5, color: "var(--slate)", lineHeight: 1.6 }}>
-              Read the full refunds and return policy — only damaged items are eligible for a free
-              replacement, and only if you record an unedited unboxing video showing the
-              package label and the damage. Click on this link to see full policy. <a href="/returnPolicy" >return policy </a>
+              Record an unedited unboxing video showing the package label. If the item arrives
+              damaged or wrong, send the video on WhatsApp within 24 hours for a free replacement.
+              Unused items can be returned or exchanged within 2 days of delivery (₹100 fee,
+              refunded as store credit). <a href="/returnPolicy">Read the full return policy</a>
             </p>
             {trackingUrl ? (
               <p style={{ marginTop: 10 }}>

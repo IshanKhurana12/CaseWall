@@ -1,10 +1,16 @@
 import "../policy.css";
 import Footer from "./Footer";
+import useSeo from "../hooks/useSeo";
 
 const WHATSAPP_NUMBER = "919871335748"; // 9871335748 with country code
 const CALL_NUMBER = "9871335748";
 
 export default function ReturnPolicy() {
+  useSeo({
+    title: "Return & Refund Policy | CASEWALL",
+    description: "2-day return/exchange window, free replacement for items damaged in transit with an unboxing video. Full details.",
+    path: "/returnPolicy",
+  });
   const returnStartLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
     "Hi! I'd like to start a return/exchange for my order. Order #: "
   )}`;
@@ -91,9 +97,9 @@ export default function ReturnPolicy() {
         <section className="policy-section">
           <h2>Cash on delivery orders</h2>
           <p>
-            For COD orders, a <strong>₹50 charget</strong> is
-            required to confirm and dispatch the order. The remaining balance
-            must be paid to the delivery partner when the order is delivered.
+            For COD orders, a <strong>₹50 COD handling fee</strong> is paid
+            online to confirm and dispatch the order. The full order amount
+            is paid to the delivery partner when the order is delivered.
           </p>
           <p>
             If you refuse delivery, fail to pay the remaining COD balance, or

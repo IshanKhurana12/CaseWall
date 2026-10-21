@@ -2,9 +2,9 @@
 
 A full storefront: customers browse products, add them to a cart, and check out with
 Razorpay. Paid orders are shipped through the store's shipping partner, and the order-status
-page shows live, server-verified payment status. Orders are non-refundable — only
-replacements for damaged items, and only with an unboxing video (see the FAQ on the site
-for the exact policy).
+page shows live, server-verified payment status. Returns follow the policy on
+the `/returnPolicy` page (`src/components/Returnpolicy.jsx`): 2-day return/exchange as
+store credit with a ₹100 fee, and free replacement for damaged items with an unboxing video.
 
 ## How the checkout flow works (and why it's safe)
 
@@ -80,8 +80,9 @@ bundled into the browser. Full list and where to find each value is in `.env.exa
 - shipping-partner credentials for your chosen courier (Shiprocket or another provider) —
   add them in your deployment platform's environment variables when you connect the shipping
   integration
-- `COD_ADVANCE_RUPEES` — amount collected online before shipping for COD orders (defaults to
-  `100`). COD shipments are sent to Shiprocket with the remaining balance in `cod_amount`; select
+- `COD_HANDLING_FEE_RUPEES` — flat COD handling fee collected online when COD is chosen
+  (defaults to `50`; must match `COD_HANDLING_FEE_RUPEES` in `src/components/CheckoutPage.jsx`).
+  The full order value is due on delivery and is sent to Shiprocket as `cod_amount`; select
   Shadowfax as the courier in Shiprocket or set `SHIPROCKET_COURIER_ID` if using a fixed courier.
 - `FIREBASE_SERVICE_ACCOUNT` (or the three `FIREBASE_PROJECT_ID` / `FIREBASE_CLIENT_EMAIL`
   / `FIREBASE_PRIVATE_KEY` vars) — from the service account key you generated in step 1
@@ -143,7 +144,7 @@ src/
     CartPage.jsx             Cart (/cart)
     CheckoutPage.jsx         Address form + Razorpay checkout (/checkout)
     OrderStatusPage.jsx      Live, read-only order status (/order/:orderId)
-  FAQSection.jsx             Includes the refund/replacement policy Q&A
+  FAQSection.jsx             Renders the FAQs from faqs.js (shared with the SEO prerender)
 
 api/
   create-order.js            Creates Firestore order + Razorpay order (server-priced)

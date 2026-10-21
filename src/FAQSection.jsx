@@ -1,27 +1,5 @@
 import { useState } from "react";
-
-const FAQS = [
-  {
-    q: "How do I pay for my order?",
-    a: "Payment is made through razorpay, you can pay using upi netbanking or by card. Once you pay you will recive a mail with a order id ,you can use that order id,phone or email in order status to know your order status",
-  },
-  {
-    q: "What happens after I pay?",
-    a: "As soon as the payment is confirmed, We set up delivery within 24-48 hours.",
-  },
-  {
-    q: "Is delivery free?",
-    a: "Delivery is free for Orders above 500. For other Orders, delivery is chargeable",
-  },
-  {
-    q: "What's your refund and return policy?",
-    a: "Refer to the return & refund policy link below",
-  },
-  {
-    q:"How I can track the orders?",
-    a:"You can track your order by using the order id,phone or email in the order status page and once the shipment is made from our end you will recive mail and whatsapp update or you can check the status of the order with a tracking link.",
-  }
-];
+import { FAQS } from "./faqs";
 
 function FAQItem({ item, isOpen, onToggle }) {
   return (
@@ -37,7 +15,7 @@ function FAQItem({ item, isOpen, onToggle }) {
           {isOpen ? "–" : "+"}
         </span>
       </button>
-      <div className="faq-answer-wrap" style={{ maxHeight: isOpen ? "240px" : "0px" }}>
+      <div className="faq-answer-wrap" style={{ maxHeight: isOpen ? "400px" : "0px" }}>
         <p className="faq-answer">{item.a}</p>
       </div>
     </div>

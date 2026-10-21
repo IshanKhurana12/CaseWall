@@ -1,51 +1,38 @@
 import { useEffect, useMemo, useState } from "react";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, orderBy } from "firebase/firestore/lite";
 import { db } from "../firebase";
 import { STORE_NAME, STORE_TAGLINE } from "../config";
 import ProductGrid from "./ProductGrid";
 import "../App.css";
 import "../jwelleryStyles.css";
 import JewelryCollection from "./JewelryCollection";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import Footer from "./Footer";
 import { getCategoryLabel, getProductCategoryValues } from "../lib/discounts";
 import OfferCarousel from "./OfferCarousel";
-import PurchaseNotifications from "./Purchasenotifications";
+import useSeo from "../hooks/useSeo";
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_TITLE,
+  breadcrumbJsonLd,
+  canonicalModelName,
+  modelDescription,
+  modelPath,
+  modelSlug,
+  modelTitle,
+  modelsForProduct,
+} from "../lib/seo";
 
 const PAGE_SIZE = 20;
-
-// Normalizes casing/whitespace so "Iphone 15 Pro" and "iPhone 15 Pro"
-// are treated as the same model everywhere (dropdown + filtering).
-// If your DB has other inconsistent naming (extra spaces, "Iphone" vs
-// "iPhone" vs "IPHONE"), this is the single place to patch it.
-function canonicalModelName(raw) {
-  if (!raw) return null;
-  const trimmed = raw.trim().replace(/\s+/g, " ");
-  // Force a consistent "iPhone" casing regardless of how it was typed/saved
-  return trimmed.replace(/^iphone/i, "iPhone");
-}
-
-// A product's list of filterable models: the denormalized `models` array
-// for variant products, or a single-item list from the legacy `model`
-// field for old flat products. Keeps CasesPage's filter working for both.
-// Every model name is run through canonicalModelName so inconsistent
-// casing in Firestore (e.g. "Iphone 15" vs "iPhone 15") doesn't create
-// duplicate dropdown entries or cause products to be filtered out.
-function modelsForProduct(p) {
-  const raw =
-    Array.isArray(p.models) && p.models.length > 0
-      ? p.models
-      : p.model
-      ? [p.model]
-      : [];
-  return raw.map(canonicalModelName).filter(Boolean);
-}
 
 export default function CasesPage() {
   const [products, setProducts] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | ready | error | empty
-  const [activeModel, setActiveModel] = useState("Filter Models");
+  // The model filter lives in the URL (/cases/iphone-15-pro) so every phone
+  // model gets its own indexable landing page.
+  const { modelSlug: routeModelSlug } = useParams();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [view, setView] = useState("cases"); // "cases" | "jewelry"
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -97,8 +84,23 @@ export default function CasesPage() {
     for (const p of products) {
       for (const m of modelsForProduct(p)) set.add(m);
     }
-    return ["Filter Models", ...Array.from(set).sort()];
+    return ["Filter Models", ...Array.from(set).sort((a, b) => a.localeCompare(b, "en", { numeric: true }))];
   }, [products]);
+
+  const activeModel = useMemo(() => {
+    if (!routeModelSlug) return "Filter Models";
+    const match = models.find((m) => modelSlug(m) === routeModelSlug);
+    if (match) return match;
+    // Until products arrive, show a name rebuilt from the URL so the heading
+    // doesn't jump (layout shift) when the real list loads.
+    if (status === "loading") return canonicalModelName(routeModelSlug.replace(/-/g, " "));
+    return "Filter Models";
+  }, [models, routeModelSlug, status]);
+  const isModelPage = activeModel !== "Filter Models";
+
+  function selectModel(m) {
+    navigate(m === "Filter Models" ? "/" : modelPath(m));
+  }
 
   const categoryOptions = useMemo(() => {
     const pool = products.filter((p) => {
@@ -204,6 +206,32 @@ export default function CasesPage() {
 
   const { count } = useCart();
 
+  const modelProductCount = isModelPage ? visible.length : 0;
+  const modelMinPrice = useMemo(() => {
+    if (!isModelPage) return null;
+    const prices = visible.map((p) => Number(p.priceFrom ?? p.price)).filter((n) => n > 0);
+    return prices.length ? Math.min(...prices) : null;
+  }, [isModelPage, visible]);
+
+  useSeo(
+    isModelPage
+      ? {
+          title: modelTitle(activeModel),
+          description: modelDescription(activeModel, modelProductCount, modelMinPrice),
+          path: modelPath(activeModel),
+          jsonLd: breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: `${activeModel} Cases`, path: modelPath(activeModel) },
+          ]),
+        }
+      : {
+          title: DEFAULT_TITLE,
+          description: DEFAULT_DESCRIPTION,
+          path: routeModelSlug ? `/cases/${routeModelSlug}` : "/",
+          noindex: Boolean(routeModelSlug) && status === "ready",
+        }
+  );
+
   if (view === "jewelry") {
     return <JewelryCollection onBack={() => setView("cases")} />;
   }
@@ -213,8 +241,8 @@ export default function CasesPage() {
     setSelectedCategory("all");
     setPage(1);
     // Reset model filter when it's no longer relevant (e.g. switching to Jewellery)
-    if (next === "jewellery") {
-      setActiveModel("Filter Models");
+    if (next === "jewellery" && routeModelSlug) {
+      navigate("/");
     }
   };
 
@@ -256,7 +284,7 @@ export default function CasesPage() {
       </div>
       <header className="store-header">
         <div className="store-header-inner">
-          <Link to="/" className="store-brand" aria-label={`${STORE_NAME} home`}>
+          <Link to="/" className="store-brand">
             <span className="store-brand-mark">CW</span>
             <span>
               <strong>{STORE_NAME}</strong>
@@ -267,17 +295,16 @@ export default function CasesPage() {
             <button type="button" className={view === "cases" ? "store-nav-active" : ""} onClick={() => setView("cases")}>Cases</button>
             {/* <button type="button" onClick={() => setView("jewelry")}>Jewellery</button> */}
             <Link to="/orderstatus">Track order</Link>
-            <Link to="/cart" className="store-cart-link" aria-label={`View cart${count > 0 ? `, ${count} items` : ""}`}>
+            <Link to="/cart" className="store-cart-link" aria-label={`Cart${count > 0 ? ` ${count} items` : ""}`}>
               Cart {count > 0 && <span>{count}</span>}
             </Link>
           </nav>
         </div>
       </header>
 
-       <PurchaseNotifications products={products} />
-
       <main className="content">
-        {hasAntiYellowProducts && (
+        {/* Shown while loading too, so it doesn't push the page down when products arrive */}
+        {(hasAntiYellowProducts || status === "loading") && (
           <section className="top-offer-section" aria-label="Current offers">
             <OfferCarousel />
           </section>
@@ -285,13 +312,23 @@ export default function CasesPage() {
 
         <section className="catalog-intro">
           <div>
-            <p className="catalog-kicker">Casewall collection</p>
-            <h1>Latest drops</h1>
-            <p>Discover new phone cases designed for your everyday carry.</p>
+            {isModelPage ? (
+              <nav className="catalog-kicker" aria-label="Breadcrumb">
+                <Link to="/">Home</Link> / {activeModel} cases
+              </nav>
+            ) : (
+              <p className="catalog-kicker">Casewall collection</p>
+            )}
+            <h1>{isModelPage ? `${activeModel} Cases & Covers` : "Phone Cases & Covers"}</h1>
+            <p>
+              {isModelPage
+                ? `Back covers cut for the ${activeModel}'s camera and buttons. Cash on delivery, dispatched in 24–48 hrs.`
+                : "Stylish back covers for iPhone and Samsung Galaxy. Cash on delivery, dispatched in 24–48 hrs across India."}
+            </p>
           </div>
           <div className="catalog-meta">
-            <span>Free shipping on eligible orders</span>
-            <span>Secure checkout</span>
+            <span>Free shipping over ₹500</span>
+            <span>Secure checkout by Razorpay</span>
           </div>
         </section>
 
@@ -330,10 +367,7 @@ export default function CasesPage() {
               <select
                 className="model-select"
                 value={activeModel}
-                onChange={(e) => {
-                  setActiveModel(e.target.value);
-                  setPage(1);
-                }}
+                onChange={(e) => selectModel(e.target.value)}
                 aria-label="Filter by phone model"
               >
                 {models.map((m) => (
@@ -441,6 +475,7 @@ export default function CasesPage() {
               <p><strong>{visible.length}</strong> products</p>
               {search.trim() && <p>Showing results for “{search.trim()}”</p>}
             </div>
+            <h2 className="sr-only">Products</h2>
             <ProductGrid products={paginated} />
 
             {totalPages > 1 && (
@@ -449,7 +484,6 @@ export default function CasesPage() {
                   className="page-btn page-btn-nav"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  aria-label="Previous page"
                 >
                   ‹ Prev
                 </button>
@@ -474,13 +508,26 @@ export default function CasesPage() {
                   className="page-btn page-btn-nav"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  aria-label="Next page"
                 >
                   Next ›
                 </button>
               </nav>
             )}
           </>
+        )}
+        {models.length > 1 && (
+          <section className="model-links" aria-labelledby="model-links-heading">
+            <h2 id="model-links-heading">Shop cases by phone model</h2>
+            <ul>
+              {models.slice(1).map((m) => (
+                <li key={m}>
+                  <Link to={modelPath(m)} aria-current={m === activeModel ? "page" : undefined}>
+                    {m} cases
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
       </main>
 

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy } from "firebase/firestore/lite";
 import { db } from "../firebase";
 import { STORE_NAME } from "../config";
 import "../cartCheckout.css";
 import { Link } from "react-router-dom";
+import useSeo from "../hooks/useSeo";
 
 function SummaryCard({ order, onView }) {
   // Firestore stores order amounts in RUPEES (not paise), so this is
@@ -32,6 +33,7 @@ function SummaryCard({ order, onView }) {
 }
 
 export default function OrderStatusLookup() {
+  useSeo({ title: "Track Your Order | CASEWALL", description: "Track your CASEWALL order with your order ID, phone number or email.", path: "/orderstatus" });
   const [term, setTerm] = useState("");
   const [type, setType] = useState("orderId");
   const [error, setError] = useState(null);
