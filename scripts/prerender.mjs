@@ -118,7 +118,9 @@ function renderPage(template, { title, description, urlPath, image, jsonLd = [],
     .filter(Boolean)
     .join("\n    ");
   swap("</head>", `    ${extraHead}\n  </head>`);
-  swap('<div id="root"></div>', `<div id="root">${body}</div>`);
+  // Wrapped in .seo-fallback (hidden on screen by a style in index.html) so
+  // visitors never see this unstyled copy flash before React renders.
+  swap('<div id="root"></div>', `<div id="root"><div class="seo-fallback">${body}</div></div>`);
   return html;
 }
 

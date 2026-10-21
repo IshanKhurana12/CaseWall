@@ -36,6 +36,20 @@
       content="Stylish mobile back covers and phone cases. Cash on delivery, free shipping over ₹500, delivered across India."
     />
 
+    <!-- Each page's HTML carries a plain-text copy of its content for search
+         engines and AI crawlers (scripts/prerender.mjs). Keep it off-screen so
+         visitors don't see it flash unstyled before the app renders. -->
+    <style>
+      .seo-fallback {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+    </style>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://res.cloudinary.com" />
