@@ -213,6 +213,13 @@ async function main() {
     `    ${jsonScript(organizationJsonLd(), false)}\n    ${jsonScript(websiteJsonLd(), false)}\n  </head>`
   );
 
+  // Plain app shell for client-only routes (/cart, /checkout, /account,
+  // /order/:id, …). vercel.json rewrites unknown paths to /spa-shell. It is
+  // the untouched template (no homepage content or homepage canonical), so
+  // those pages don't masquerade as the homepage; useSeo sets their tags.
+  // Written first so it exists even if the catalog can't be loaded.
+  await writeFile(path.join(dist, "spa-shell.html"), base);
+
   let catalog = { products: [], variantsById: {} };
   try {
     catalog = await loadCatalog();
