@@ -116,7 +116,7 @@ export function organizationJsonLd() {
     "@id": `${SITE_URL}/#organization`,
     name: BRAND,
     url: `${SITE_URL}/`,
-    logo: `${SITE_URL}/favicon.svg`,
+    logo: `${SITE_URL}/icon-512.png`,
     description: DEFAULT_DESCRIPTION,
     areaServed: { "@type": "Country", name: "India" },
     sameAs: [INSTAGRAM_URL],
