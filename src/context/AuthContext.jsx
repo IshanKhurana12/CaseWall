@@ -12,8 +12,12 @@ function loadAuth() {
     authModulePromise = import("firebase/auth").then((m) => {
       loadedAuth = {
         m,
+        // localStorage first: on phones the Google popup opens as a new tab,
+        // the shop tab goes to the background and the browser closes its
+        // IndexedDB connection — Firebase then fails to save the session
+        // ("Database is closing/hidden") and the sign-in is lost.
         auth: m.initializeAuth(app, {
-          persistence: [m.indexedDBLocalPersistence, m.browserLocalPersistence],
+          persistence: [m.browserLocalPersistence, m.indexedDBLocalPersistence],
         }),
       };
       return loadedAuth;
