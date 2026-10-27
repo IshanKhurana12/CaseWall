@@ -24,6 +24,20 @@ const _shipThreshold = Number(import.meta.env.VITE_SHIPPING_FREE_THRESHOLD_RUPEE
 export const SHIPPING_RATE_RUPEES = Number.isFinite(_shipRate) && _shipRate >= 0 ? _shipRate : 80;
 export const SHIPPING_FREE_THRESHOLD_RUPEES = Number.isFinite(_shipThreshold) && _shipThreshold >= 0 ? _shipThreshold : 500;
 
+// Pop-up shown once per visit on the cart page (components/OfferPopup).
+// To run a different offer, change these fields (give it a new `id` so people
+// who closed the last one see it again). Set `enabled: false` to turn it off.
+// `{threshold}` in the text is replaced with the free-shipping amount above.
+// Set `showFreeShippingProgress: false` for offers not about free shipping.
+export const CART_OFFER = {
+  enabled: true,
+  id: "diwali-2026",
+  icon: "🪔",
+  label: "Diwali offer",
+  title: "Free shipping on orders above {threshold}",
+  showFreeShippingProgress: true,
+};
+
 // Frontend trigger for cleanup-reservations: minutes between automatic frontend-initiated runs
 // Set `VITE_CLEANUP_TRIGGER_INTERVAL_MINUTES` in your .env for development.
 const _cleanupInterval = Number(import.meta.env.VITE_CLEANUP_TRIGGER_INTERVAL_MINUTES);

@@ -7,6 +7,7 @@ import { STORE_NAME, SHIPPING_RATE_RUPEES, SHIPPING_FREE_THRESHOLD_RUPEES } from
 import "../cartCheckout.css";
 import NotifyModal from "./NotifyModal";
 import Footer from "./Footer";
+import OfferPopup from "./OfferPopup";
 import useSeo from "../hooks/useSeo";
 import { responsiveImg } from "../lib/images";
 import { LockIcon, TruckIcon } from "./Icons";
@@ -165,6 +166,7 @@ export default function CartPage() {
           </div>
         ) : (
           <div className="cart-layout">
+            <OfferPopup orderValue={discountedSubtotal} />
             <div className="cart-list">
               {items.map((item) => (
                 <div className="cart-row" key={item.key}>
