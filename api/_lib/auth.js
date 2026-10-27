@@ -1,25 +1,55 @@
 // Verifies the Firebase ID token the browser sends as
 // "Authorization: Bearer <token>" after Google sign-in. Server-side only.
-import { getAuth } from "firebase-admin/auth";
-import { getAdminApp } from "./firebaseAdmin.js";
+//
+// Deliberately NOT firebase-admin/auth: it pulls in jwks-rsa, which require()s
+// the ESM-only `jose` package, and Vercel's function loader crashes on that
+// (ERR_REQUIRE_ESM) — taking down create-order. This follows Firebase's
+// documented manual check instead: RS256 signature against Google's public
+// keys, audience = project id, issuer = securetoken.google.com/<project id>,
+// not expired, non-empty subject.
+import { createRemoteJWKSet, jwtVerify } from "jose";
+
+const GOOGLE_KEYS = createRemoteJWKSet(
+  new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com")
+);
+
+function projectId() {
+  const id = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
+  if (id) return id;
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT).project_id;
+  throw new Error("FIREBASE_PROJECT_ID is not set");
+}
 
 export class InvalidTokenError extends Error {}
 
 // Returns { uid, email, emailVerified, name } for a valid token, null when no
 // token was sent (guest). Throws InvalidTokenError for a bad/expired token;
-// anything else (e.g. server misconfiguration) propagates as a normal error.
+// anything else (e.g. Google's key endpoint unreachable) propagates normally.
 export async function getUserFromRequest(req) {
   const header = req.headers?.authorization || req.headers?.Authorization || "";
   const match = /^Bearer\s+(.+)$/i.exec(String(header));
   if (!match) return null;
-  const adminAuth = getAuth(getAdminApp());
+  const pid = projectId();
   let decoded;
   try {
-    decoded = await adminAuth.verifyIdToken(match[1]);
+    ({ payload: decoded } = await jwtVerify(match[1], GOOGLE_KEYS, {
+      algorithms: ["RS256"],
+      audience: pid,
+      issuer: `https://securetoken.google.com/${pid}`,
+      clockTolerance: 5,
+    }));
   } catch (err) {
-    if (String(err?.code || "").startsWith("auth/")) throw new InvalidTokenError(err.code);
+    // jose's verification failures all carry ERR_J* / ERR_JW* codes.
+    if (/^ERR_J/.test(String(err?.code || ""))) throw new InvalidTokenError(err.code);
     throw err;
   }
+  if (typeof decoded.sub !== "string" || !decoded.sub || decoded.sub.length > 128) {
+    throw new InvalidTokenError("invalid-subject");
+  }
+  if (typeof decoded.auth_time === "number" && decoded.auth_time > Date.now() / 1000 + 5) {
+    throw new InvalidTokenError("auth-time-in-future");
+  }
+  decoded = { ...decoded, uid: decoded.sub };
   return {
     uid: decoded.uid,
     email: decoded.email ? String(decoded.email).toLowerCase() : null,
