@@ -36,6 +36,7 @@ export async function sendOrderConfirmationEmail(order, orderId) {
     <p>Thank you — your order <strong>${orderId}</strong> has been confirmed.</p>
     <p>Amount: <strong>₹${(Number(order.amount)||0)}</strong></p>
     <p>You can check the status of your order <a href="${orderUrl}">here</a>.</p>
+    <p>Tip: sign in with Google at <a href="${process.env.SITE_ORIGIN || ""}/account">${process.env.SITE_ORIGIN || ""}/account</a> using this email address to see all your orders in one place.</p>
     <p>Thanks,<br/>${process.env.STORE_NAME || "Store"}</p>`;
 
   await transport.sendMail({ from, to, subject, text, html });

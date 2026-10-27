@@ -4,7 +4,7 @@
 export const FAQS = [
   {
     q: "How do I pay for my order?",
-    a: "You can pay online through Razorpay using UPI, net banking or a debit/credit card, or choose cash on delivery. Once you pay you'll get an email with your order ID, which you can use (or your phone number or email) on the Track Order page.",
+    a: "You can pay online through Razorpay using UPI, net banking or a debit/credit card, or choose cash on delivery. After paying you'll get a confirmation email with your order ID and a link to track it.",
   },
   {
     q: "Is cash on delivery (COD) available?",
@@ -24,7 +24,7 @@ export const FAQS = [
   },
   {
     q: "How can I track my order?",
-    a: "Use your order ID, phone number or email on the Track Order page. Once your order ships you'll also get an email and WhatsApp update with a tracking link.",
+    a: "Sign in with Google on casewall.in to see all your orders and their delivery status in My Account, or open the link in your confirmation email. Once your order ships you'll also get an email and WhatsApp update with a tracking link.",
   },
   {
     q: "How do I contact CASEWALL?",

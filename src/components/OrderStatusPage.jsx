@@ -8,6 +8,15 @@ const db = getFirestore(app);
 import { STORE_NAME, WHATSAPP_NUMBER } from "../config";
 import "../cartCheckout.css";
 import useSeo from "../hooks/useSeo";
+import { useAuth } from "../context/AuthContext";
+import { CheckIcon } from "./Icons";
+import "../siteChrome.css";
+
+const STEPS = [
+  { key: "paid", label: "Confirmed" },
+  { key: "shipped", label: "Shipped" },
+  { key: "delivered", label: "Delivered" },
+];
 
 function formatPrice(value) {
   if (value === undefined || value === null) return "—";
@@ -27,6 +36,7 @@ function formatPrice(value) {
 export default function OrderStatusPage() {
   useSeo({ title: "Order Status | CASEWALL", noindex: true });
   const { orderId } = useParams();
+  const { user } = useAuth();
   const [order, setOrder] = useState(null);
   const [state, setState] = useState("loading"); // loading | found | notfound | error
 
@@ -110,6 +120,20 @@ export default function OrderStatusPage() {
         <h1 className="order-status-title">{statusView.title}</h1>
         <p className="order-status-sub">{statusView.sub}</p>
         <span className="order-status-id">Order ID: {orderId}</span>
+
+        {isPaidOrLater && (
+          <ol className="order-steps" aria-label="Order progress">
+            {STEPS.map((step, i) => {
+              const reached = i <= STEPS.findIndex((x) => x.key === status);
+              return (
+                <li key={step.key} className={reached ? "order-step-done" : ""}>
+                  <span className="order-step-dot">{reached ? <CheckIcon size={14} /> : i + 1}</span>
+                  {step.label}
+                </li>
+              );
+            })}
+          </ol>
+        )}
         {order.createdAt && (
           <div style={{ color: "var(--slate)", marginTop: 6 }}>Placed: {new Date(order.createdAt.seconds ? order.createdAt.seconds * 1000 : order.createdAt).toLocaleString()}</div>
         )}
@@ -195,12 +219,16 @@ export default function OrderStatusPage() {
             <div style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <div style={{ color: "var(--slate)" }}>Method</div>
-                <div>{order.paymentMethod || order.method || "Razorpay"}</div>
+                <div>
+                  {String(order.paymentMethod || "").toUpperCase() === "COD"
+                    ? "Cash on delivery"
+                    : "Paid online (Razorpay)"}
+                </div>
               </div>
               {String(order.paymentMethod || "").toUpperCase() === "COD" && (
                 <>
                   <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-                    <div style={{ color: "var(--slate)" }}>Paid as advance</div>
+                    <div style={{ color: "var(--slate)" }}>COD fee paid online</div>
                     <div>{formatPrice(order.codAdvanceAmount ?? order.paymentAmount ?? 0)}</div>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
@@ -249,9 +277,16 @@ export default function OrderStatusPage() {
         </p>
 
         {status !== "created" && (
-          <p style={{ marginTop: 20 }}>
-            <a href="/" className="pp-btn" style={{ textDecoration: "none" }}>Back to Home</a>
-          </p>
+          <div className="btn-row" style={{ justifyContent: "center", marginTop: 20 }}>
+            {user && (
+              <Link to="/account" className="btn btn-secondary">
+                View all my orders
+              </Link>
+            )}
+            <Link to="/" className="btn btn-primary">
+              Continue shopping
+            </Link>
+          </div>
         )}
       </div>
     </div>

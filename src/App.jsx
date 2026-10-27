@@ -3,7 +3,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import CasesPage from "./components/CasesPage";
 import { CartProvider } from "./context/CartContext";
 import { Analytics } from "@vercel/analytics/react";
-import SiteMarquee from "./components/SiteMarquee";
+import SiteHeader from "./components/SiteHeader";
+import { AuthProvider } from "./context/AuthContext";
 import { CLEANUP_TRIGGER_INTERVAL_MINUTES } from "./config";
 
 // Every page except the catalog is split into its own chunk, so the homepage
@@ -14,6 +15,7 @@ const CartPage = lazy(() => import("./components/CartPage"));
 const CheckoutPage = lazy(() => import("./components/CheckoutPage"));
 const OrderStatusPage = lazy(() => import("./components/OrderStatusPage"));
 const OrderStatusLookup = lazy(() => import("./components/OrderStatusLookup"));
+const AccountPage = lazy(() => import("./components/AccountPage"));
 const ReturnPolicy = lazy(() => import("./components/Returnpolicy"));
 const AboutPage = lazy(() => import("./components/InfoPages").then((m) => ({ default: m.AboutPage })));
 const ShippingPolicyPage = lazy(() =>
@@ -62,9 +64,10 @@ export default function App() {
     };
   }, []);
   return (
+    <AuthProvider>
     <CartProvider>
       <BrowserRouter>
-        <SiteMarquee />
+        <SiteHeader />
         <Suspense fallback={<PageFallback />}>
         <Routes>
           <Route path="/" element={<CasesPage />} />
@@ -74,6 +77,7 @@ export default function App() {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/orderstatus" element={<OrderStatusLookup />} />
+          <Route path="/account" element={<AccountPage />} />
           <Route path="/order/:orderId" element={<OrderStatusPage />} />
           <Route path="/returnPolicy" element={<ReturnPolicy />} />
           <Route path="/about" element={<AboutPage />} />
@@ -84,5 +88,6 @@ export default function App() {
         <Analytics />
       </BrowserRouter>
     </CartProvider>
+    </AuthProvider>
   );
 }

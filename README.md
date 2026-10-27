@@ -94,6 +94,38 @@ Database → Rules → paste and publish) — this is what stops anyone from wri
 to `orders` or `products` from the browser. Everything in this repo writes through the
 Admin SDK in `/api` instead, which bypasses rules by design.
 
+## 4b. Customer accounts (Google sign-in)
+
+Customers can sign in with Google to see their order history (`/account`) and
+save delivery addresses. Guest checkout still works.
+
+One-time Firebase Console setup:
+
+1. **Authentication → Sign-in method → Add new provider → Google → Enable**, pick a
+   support email, save.
+2. **Authentication → Settings → Authorized domains → Add domain**: `casewall.in` and
+   `www.casewall.in`.
+3. **Firestore Database → Rules**: paste `firestore.rules` and publish. The rules let
+   anyone open a single order by its ID (email links) but block listing/searching
+   orders, and give browsers no access to saved addresses (`users/*`).
+
+How it fits together:
+
+- `src/context/AuthContext.jsx` loads Firebase Auth lazily and exposes `authFetch`,
+  which sends the user's ID token as `Authorization: Bearer …`.
+- `api/_lib/auth.js` verifies that token server-side.
+- `api/account.js` serves order history (orders with the user's `uid`, plus earlier
+  guest orders placed with the same verified email) and address CRUD
+  (`users/{uid}/addresses`).
+- `api/create-order.js` stamps `uid` on orders placed while signed in and can save a
+  new address to the account.
+
+## 4c. Google Merchant Center product feed
+
+Every build writes `https://casewall.in/merchant-feed.xml` (all products with price,
+stock, images and shipping). In Merchant Center: **Products → Add products → Add
+products from a file → enter the feed URL → daily schedule**. No spreadsheet needed.
+
 ## 5. Run it locally
 
 ```

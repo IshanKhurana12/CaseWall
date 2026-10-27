@@ -3,12 +3,15 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore/lite";
 import { db } from "../firebase";
 import { useCart } from "../context/CartContext";
-import { STORE_NAME, WHATSAPP_NUMBER } from "../config";
+import { STORE_NAME } from "../config";
 import "../productPage.css";
 import FAQSection from "../FAQSection";
 import NotifyModal from "./NotifyModal";
 import Footer from "./Footer";
 import useSeo from "../hooks/useSeo";
+import TrustBar from "./TrustBar";
+import ProductReviews from "./ProductReviews";
+import useProductReviews from "../hooks/useProductReviews";
 import { responsiveImg } from "../lib/images";
 import {
   breadcrumbJsonLd,
@@ -34,30 +37,7 @@ function formatPrice(value, currency = "INR") {
   }
 }
 
-// Older docs may have reviews stored as plain strings; normalize everything
-// to { text, images, verified } and drop anything malformed.
-function normalizeReviews(reviews) {
-  if (!Array.isArray(reviews)) return [];
-  return reviews.map((r) => {
-    if (typeof r === "string") {
-      return { name: "", text: r, images: [], verified: false };
-    }
-    return {
-      name: r?.name || "",
-      text: r?.text || "",
-      images: Array.isArray(r?.images) ? r.images : [],
-      verified: !!r?.verified,
-    };
-  });
-}
 
-// Accepts digits with an optional leading "+" and optional spaces/dashes/
-// parentheses (e.g. "+91 98765 43210", "9876543210"), 7-15 digits total.
-// Rejects anything with letters or too few/many digits.
-function isValidPhone(phone) {
-  const cleaned = phone.replace(/[\s\-()]/g, "");
-  return /^\+?[0-9]{7,15}$/.test(cleaned);
-}
 
 function formatJewelleryType(type) {
   return type
@@ -93,18 +73,11 @@ export default function ProductPage() {
   const [status, setStatus] = useState("loading"); // loading | ready | notfound | error
   const [activeIndex, setActiveIndex] = useState(0);
   const [modalMsg, setModalMsg] = useState("");
-  const [activeReviewImage, setActiveReviewImage] = useState(null);
 
   // --- variant selection state ---
   const [selectedModel, setSelectedModel] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
 
-  // --- write-a-review state ---
-  const [showReviewForm, setShowReviewForm] = useState(false);
-  const [reviewName, setReviewName] = useState("");
-  const [reviewPhone, setReviewPhone] = useState("");
-  const [reviewText, setReviewText] = useState("");
-  const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -194,6 +167,7 @@ export default function ProductPage() {
     return existing ? existing.qty : 0;
   }, [items, product, selectedVariant]);
 
+  const { reviews, loading: reviewsLoading, reload: reloadReviews } = useProductReviews(product);
   const seoModels = product ? modelsForProduct(product) : [];
   useSeo(
     product
@@ -203,7 +177,8 @@ export default function ProductPage() {
           path: `/product/${product.id}`,
           image: productImages(product)[0],
           jsonLd: [
-            productJsonLd(product, variants),
+            // Star ratings in Google come from the same reviews shown on the page.
+            productJsonLd({ ...product, reviews: reviews.map((r) => ({ ...r, verified: true })) }, variants),
             breadcrumbJsonLd([
               { name: "Home", path: "/" },
               ...(seoModels.length === 1
@@ -238,7 +213,11 @@ export default function ProductPage() {
   }
 
   const price = formatPrice(selectedVariant?.price, product.currency);
+  const mrpValue = Number(product.hasVariants ? selectedVariant?.mrp : product.mrp);
   const mrp = formatPrice(product.hasVariants ? selectedVariant?.mrp : product.mrp, product.currency);
+  const priceValue = Number(selectedVariant?.price);
+  const savings = Number.isFinite(mrpValue) && Number.isFinite(priceValue) && mrpValue > priceValue ? mrpValue - priceValue : 0;
+  const savingsPct = savings > 0 ? Math.round((savings / mrpValue) * 100) : 0;
 
   const outOfStock = selectedVariant ? selectedVariant.inStock === false : true;
   const hasStockCount = selectedVariant && typeof selectedVariant.stock === "number";
@@ -263,10 +242,6 @@ export default function ProductPage() {
       ? product.jewelleryTypes
       : [];
 
-  // Only verified reviews are ever shown to customers — unverified ones
-  // stay hidden even though they exist on the product document.
-  const allReviews = normalizeReviews(product.reviews);
-  const visibleReviews = allReviews.filter((r) => r.verified);
 
   function handleBuyNow() {
     if (outOfStockEffective || !selectedVariant) {
@@ -284,46 +259,21 @@ export default function ProductPage() {
     navigate("/cart");
   }
 
-  function handleReviewSubmit(e) {
-    e.preventDefault();
-
-    if (!reviewName.trim() || !reviewPhone.trim() || !reviewText.trim()) {
-      setModalMsg("Please add your name, phone number, and review before submitting.");
-      return;
-    }
-
-    if (!isValidPhone(reviewPhone)) {
-      setModalMsg("Please enter a valid phone number (digits only, 7-15 digits).");
-      return;
-    }
-
-    if (!WHATSAPP_NUMBER) {
-      console.error("WHATSAPP_NUMBER is not configured in ../config");
-      setModalMsg("Reviews can't be submitted right now. Please try again later.");
-      return;
-    }
-
-    const message = [
-      `New review for: ${product.name}`,
-      `Name: ${reviewName.trim()}`,
-      `Phone: ${reviewPhone.trim()}`,
-      `Review: ${reviewText.trim()}`,
-    ].join("\n");
-
-    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-
-    setReviewSubmitted(true);
-    setShowReviewForm(false);
-    setReviewName("");
-    setReviewPhone("");
-    setReviewText("");
-  }
 
   return (
     <div className="page">
       <div className="pp-wrap">
-        <button  onClick={() => navigate(-1)}  className="pp-back-link">← Back to {STORE_NAME}</button>
+        <nav className="pp-crumbs" aria-label="Breadcrumb">
+          <Link to="/">Home</Link>
+          {seoModels.length === 1 && (
+            <>
+              <span aria-hidden="true">/</span>
+              <Link to={modelPath(seoModels[0])}>{seoModels[0]} cases</Link>
+            </>
+          )}
+          <span aria-hidden="true">/</span>
+          <span aria-current="page">{product.name}</span>
+        </nav>
 
         <div className="pp-grid">
           <div className="pp-gallery">
@@ -371,9 +321,6 @@ export default function ProductPage() {
             )}
             <h1 className="pp-name">{product.name}</h1>
 
-            <div className="pp-badge-row" aria-label="Product benefits">
-              <span className="pp-cod-badge">COD available</span>
-            </div>
 
       
 
@@ -391,27 +338,20 @@ export default function ProductPage() {
 
             <div className="pp-price-row">
               {price && <span className="pp-price">{price}</span>}
-              {mrp && <span className="card-mrp">{mrp}</span>}
+              {mrp && savings > 0 && <span className="card-mrp">{mrp}</span>}
+              {savings > 0 && <span className="pp-save">{savingsPct}% off</span>}
             </div>
-                                 <div className="card-tax-note">
-    All taxes incl.
-  </div>
-
-            {/* {product.description && <p className="pp-desc">{product.description}</p>} */}
-
-            {product.description && (
-  <div className="pp-desc">
-    {product.description
-      .split(".")
-      .map((sentence) => sentence.trim())
-      .filter(Boolean)
-      .map((sentence, i) => (
-        <p key={i} className="pp-desc-line">
-          {sentence}.
-        </p>
-      ))}
-  </div>
-)}
+            <p className="pp-price-note">
+              Inclusive of all taxes
+              {savings > 0 && <> · You save {formatPrice(savings, product.currency)}</>}
+            </p>
+            <p className={"pp-stock" + (outOfStockEffective ? " pp-stock-out" : "")}>
+              {outOfStockEffective
+                ? "Currently out of stock"
+                : hasStockCount && maxStock <= 5
+                ? `In stock — only ${maxStock} left`
+                : "In stock · ships in 24–48 hrs"}
+            </p>
 
             {/* --- variant picker: only rendered for products that actually have variants --- */}
             {product.hasVariants && (
@@ -546,13 +486,27 @@ export default function ProductPage() {
   </a>
 </div>
 
-          <div className="trust-strip">
-  <span>🔒 Secure payments via Razorpay</span>
-  <span>💵 Cash on delivery</span>
-  <span>↩️ 2-Day Return & Exchange*</span>
-  <span>🚚 Dispatch in 24–48 hrs, pan-India</span>
-</div>
-<p className="trust-strip-note">*Conditions apply — see <Link to="/returnPolicy">return policy</Link></p>
+          <TrustBar compact />
+          <p className="trust-strip-note">
+            Returns and exchanges within 2 days of delivery — <Link to="/returnPolicy">see return policy</Link>
+          </p>
+
+          {product.description && (
+            <section className="pp-section">
+              <h2 className="pp-section-title">Product details</h2>
+              <div className="pp-desc">
+                {product.description
+                  .split(".")
+                  .map((sentence) => sentence.trim())
+                  .filter(Boolean)
+                  .map((sentence, i) => (
+                    <p key={i} className="pp-desc-line">
+                      {sentence}.
+                    </p>
+                  ))}
+              </div>
+            </section>
+          )}
           </div>
         </div>
 
@@ -561,160 +515,31 @@ export default function ProductPage() {
 
 
 
+        <ProductReviews product={product} reviews={reviews} loading={reviewsLoading} onSubmitted={reloadReviews} />
+
+        <div className="pp-product-info">
+          <p className="pp-product-info-title">Product information</p>
+          <div className="pp-product-info-row">
+            <span className="pp-product-info-label">Brand</span>
+            <span className="pp-product-info-value">{STORE_NAME}</span>
+          </div>
+          {seoModels.length > 0 && (
+            <div className="pp-product-info-row">
+              <span className="pp-product-info-label">Compatible with</span>
+              <span className="pp-product-info-value">{seoModels.join(", ")}</span>
+            </div>
+          )}
+          <div className="pp-product-info-row">
+            <span className="pp-product-info-label">Marketed by</span>
+            <span className="pp-product-info-value">Casewall, India</span>
+          </div>
+          <div className="pp-product-info-row">
+            <span className="pp-product-info-label">Country of origin</span>
+            <span className="pp-product-info-value">China (imported)</span>
+          </div>
+        </div>
+
         <FAQSection />
-
-  <div className="pp-product-info">
-  <p className="pp-product-info-title">Product Information</p>
-  <div className="pp-product-info-row">
-    <span className="pp-product-info-label">Marketed by</span>
-    <span className="pp-product-info-value">Casewall, India</span>
-  </div>
-  <div className="pp-product-info-row">
-    <span className="pp-product-info-label">Country of Origin</span>
-    <span className="pp-product-info-value">China(Imported)</span>
-  </div>
-</div>
-      
-
-        <div className="pp-reviews" id="reviews" style={{ marginTop: 150 }}>
-          <div className="pp-reviews-header">
-            <h2 className="pp-reviews-title">
-              Customer Reviews
-              {visibleReviews.length > 0 && (
-                <span className="pp-reviews-count"> ({visibleReviews.length})</span>
-              )}
-            </h2>
-
-            {!showReviewForm && (
-              <button
-                type="button"
-                className="pp-btn pp-btn-secondary pp-write-review-btn"
-                onClick={() => {
-                  setReviewSubmitted(false);
-                  setShowReviewForm(true);
-                }}
-              >
-                Write a Review
-              </button>
-            )}
-          </div>
-
-          {reviewSubmitted && (
-            <p className="pp-review-thankyou">
-              Thanks for sending your review on WhatsApp! Once verified, your review will get added here.
-            </p>
-          )}
-
-          {showReviewForm && (
-            <form className="pp-review-form" onSubmit={handleReviewSubmit}>
-              <p className="pp-review-form-note">
-                We'll open WhatsApp with your review filled in — just hit send there to submit it.
-              </p>
-
-              <label className="pp-review-field">
-                Name
-                <input
-                  type="text"
-                  value={reviewName}
-                  onChange={(e) => setReviewName(e.target.value)}
-                  placeholder="Your name"
-                  required
-                />
-              </label>
-
-              <label className="pp-review-field">
-                Phone Number
-                <input
-                  type="tel"
-                  inputMode="tel"
-                  value={reviewPhone}
-                  onChange={(e) => {
-                    const cleaned = e.target.value.replace(/[^0-9+\-\s()]/g, "");
-                    setReviewPhone(cleaned);
-                  }}
-                  placeholder="Your phone number"
-                  pattern="\+?[0-9\s\-()]{7,15}"
-                  title="Enter a valid phone number (7-15 digits)"
-                  required
-                />
-              </label>
-
-              <label className="pp-review-field">
-                Review
-                <textarea
-                  value={reviewText}
-                  onChange={(e) => setReviewText(e.target.value)}
-                  placeholder="Tell us what you think about this product"
-                  rows={4}
-                  required
-                />
-              </label>
-
-              <div className="pp-review-form-actions">
-                <button type="submit" className="pp-btn pp-btn-primary">
-                  Submit via WhatsApp
-                </button>
-                <button
-                  type="button"
-                  className="pp-btn pp-btn-secondary"
-                  onClick={() => setShowReviewForm(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-
-       <div className="pp-reviews-gallery">
-  {visibleReviews.length === 0 ? (
-    <p className="muted">No reviews yet.</p>
-  ) : (
-    <div className="pp-review-scroll">
-      {visibleReviews.map((review, i) => (
-        <div className="pp-review-card" key={i}>
-          <div className="pp-review-header">
-            <div className="pp-review-avatar">
-              {review.name ? review.name.charAt(0).toUpperCase() : "?"}
-            </div>
-            <div>
-              {review.name && <p className="pp-review-author">{review.name}</p>}
-              {review.rating && (
-                <div className="pp-review-stars">
-                  {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <p className="pp-review-text">{review.text}</p>
-
-          {review.images.length > 0 && (
-            <div className="pp-review-images">
-              {review.images.map((src, imgI) => (
-                <button
-                  key={imgI}
-                  type="button"
-                  className="pp-review-thumb-btn"
-                  onClick={() => setActiveReviewImage(src)}
-                  aria-label="View review photo"
-                >
-                  <img {...responsiveImg(src, "120px", 320)} alt="" className="pp-review-thumb" loading="lazy" decoding="async" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  )}
-</div>
-
-{activeReviewImage && (
-  <div className="pp-review-lightbox" onClick={() => setActiveReviewImage(null)}>
-    <img {...responsiveImg(activeReviewImage, "100vw")} alt="Review" decoding="async" />
-  </div>
-)}
-        </div>
 
         
       </div>

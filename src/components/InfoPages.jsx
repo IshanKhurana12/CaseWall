@@ -151,8 +151,8 @@ export function ShippingPolicyPage() {
         <h2>Tracking</h2>
         <p>
           Once your order ships we send a tracking link on email and WhatsApp. You can also check
-          anytime on the <Link to="/orderstatus">order status page</Link> using your order ID,
-          phone number or email.
+          anytime in <Link to="/account">My Account</Link> (sign in with Google) or on the{" "}
+          <Link to="/orderstatus">order status page</Link> using your order ID.
         </p>
       </section>
     </PolicyShell>

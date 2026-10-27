@@ -4,6 +4,7 @@ import { WHATSAPP_NUMBER } from "../config";
 import { useCart } from "../context/CartContext";
 import NotifyModal from "./NotifyModal";
 import { responsiveImg } from "../lib/images";
+import { canonicalModelName } from "../lib/seo";
 
 // Card image width: 2 columns on phones, 3 on tablets, 4 on desktop.
 const CARD_SIZES = "(max-width: 760px) 50vw, (max-width: 1100px) 33vw, 300px";
@@ -269,7 +270,11 @@ export default function ProductCard({ product, priority = false }) {
       </div>
 
       <div className="card-body">
-        {!hasVariants ?  product.model && <p className="card-model">{product.model}</p> :   product.model && <p className="card-model">Choose from Models</p> }
+        {!hasVariants
+          ? product.model && <p className="card-model">{canonicalModelName(product.model)}</p>
+          : Array.isArray(product.models) && product.models.length > 1 && (
+              <p className="card-model">{product.models.length} phone models</p>
+            )}
       
         <Link to={`/product/${product.id}`} className="card-name-link">
           <h3 className="card-name">{product.name ?? "Untitled cover"}</h3>

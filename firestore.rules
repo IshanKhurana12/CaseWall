@@ -2,35 +2,75 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Product catalog — you manage this from the Firebase console (or your
-    // own admin tooling). The app only ever reads it.
+    // Admin panel accounts (../admin-panel signs in with email + password).
+    // Customers sign in with Google and are never admins — a plain
+    // `request.auth != null` check would let ANY signed-in customer edit
+    // products, prices and orders, so admin access is an explicit allowlist.
+    // Add/remove admin emails here and re-publish.
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'password'
+        && request.auth.token.email in [
+          'ishankhurana176@gmail.com'
+        ];
+    }
+
+    // Product catalog: public to read, edited from the admin panel.
     match /products/{productId} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isAdmin();
+
+      // Subcollections are NOT covered by the parent match — variants need
+      // their own block or product pages can't load model/colour options.
+      match /variants/{variantId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
     }
 
-    // Jewellery collection used by the DeViR catalog. Allow public reads
-    // from the web client; writes should be done from admin tooling only.
+    // Jewellery collection used by the DeViR catalog.
     match /jewelry/{docId} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isAdmin();
     }
 
-    // Orders are created AND updated only by the /api serverless functions
-    // using the Firebase Admin SDK, which authenticates with a service
-    // account and always bypasses these rules entirely. That's what makes
-    // the payment flow safe: nothing running in the browser — not the
-    // Razorpay "success" callback, not the cart, not a tampered request —
-    // can ever set an order's status to "paid" or change its amount.
+    // Coupon codes. The storefront validates coupons on the server
+    // (/api/validate-discount, Admin SDK), so browsers don't need to read
+    // them — keeping them private stops people listing every code.
+    match /discounts/{discountId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Orders are created and marked paid only by the /api functions (Admin
+    // SDK bypasses these rules), so no browser can fake a payment.
     //
-    // Reads are allowed so the order-status page can show live progress.
-    // Firestore document IDs here are random, unguessable auto-IDs, which
-    // is an acceptable level of protection for a small storefront with no
-    // login system. If you add customer accounts later, tighten this to
-    // `allow read: if request.auth.uid == resource.data.uid`.
+    // `get` (one order by its id) stays open so /order/:id links in
+    // confirmation emails keep working for guests; order ids are random,
+    // unguessable 20-character ids. `list` (search/query) is admin-only so
+    // nobody can look up other customers' names, phones and addresses.
+    // Customers see their own history through /api/account (server-side,
+    // checks their Google sign-in). The admin panel can update status only.
     match /orders/{orderId} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if false;
+      allow update: if isAdmin();
+      // Orders are a permanent record — nobody can delete one, not even an
+      // admin (cancelled orders stay, marked "cancelled").
+      allow delete: if false;
+    }
+
+    // Product reviews — public to read, written by /api/reviews (checks the
+    // Google sign-in and that the customer bought the product). Docs hold no
+    // uid, email or order id. Admins can hide one by setting status "hidden".
+    match /reviews/{reviewId} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isAdmin();
+    }
+
+    // Saved addresses — only through /api/account (Admin SDK).
+    match /users/{uid}/{document=**} {
+      allow read, write: if false;
     }
   }
 }

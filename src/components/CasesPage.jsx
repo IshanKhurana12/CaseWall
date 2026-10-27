@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs, query, orderBy } from "firebase/firestore/lite";
 import { db } from "../firebase";
-import { STORE_NAME, STORE_TAGLINE } from "../config";
 import ProductGrid from "./ProductGrid";
 import "../App.css";
 import "../jwelleryStyles.css";
 import JewelryCollection from "./JewelryCollection";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { useCart } from "../context/CartContext";
 import Footer from "./Footer";
 import { getCategoryLabel, getProductCategoryValues } from "../lib/discounts";
 import OfferCarousel from "./OfferCarousel";
+import TrustBar from "./TrustBar";
 import useSeo from "../hooks/useSeo";
 import {
   DEFAULT_DESCRIPTION,
@@ -42,6 +41,12 @@ export default function CasesPage() {
   // survives navigating to a product page and back (no remount reset).
   const [searchParams, setSearchParams] = useSearchParams();
   const page = Number(searchParams.get("page")) || 1;
+
+  // The header search box navigates to /?q=… — apply it to the catalog.
+  const headerQuery = searchParams.get("q") || "";
+  useEffect(() => {
+    setSearch(headerQuery);
+  }, [headerQuery]);
 
   const setPage = (updater) => {
     setSearchParams(
@@ -204,7 +209,6 @@ export default function CasesPage() {
     return visible.slice(start, start + PAGE_SIZE);
   }, [visible, page]);
 
-  const { count } = useCart();
 
   const modelProductCount = isModelPage ? visible.length : 0;
   const modelMinPrice = useMemo(() => {
@@ -276,31 +280,7 @@ export default function CasesPage() {
   }
 
   return (
-    <div className="page">
-      <div className="store-announcement" role="status">
-        <span>Free shipping on eligible orders</span>
-        <span>Cash on delivery available</span>
-        <span>New designs added weekly</span>
-      </div>
-      <header className="store-header">
-        <div className="store-header-inner">
-          <Link to="/" className="store-brand">
-            <span className="store-brand-mark">CW</span>
-            <span>
-              <strong>{STORE_NAME}</strong>
-              <small>{STORE_TAGLINE}</small>
-            </span>
-          </Link>
-          <nav className="store-nav" aria-label="Store navigation">
-            <button type="button" className={view === "cases" ? "store-nav-active" : ""} onClick={() => setView("cases")}>Cases</button>
-            {/* <button type="button" onClick={() => setView("jewelry")}>Jewellery</button> */}
-            <Link to="/orderstatus">Track order</Link>
-            <Link to="/cart" className="store-cart-link" aria-label={`Cart${count > 0 ? ` ${count} items` : ""}`}>
-              Cart {count > 0 && <span>{count}</span>}
-            </Link>
-          </nav>
-        </div>
-      </header>
+    <div className="page catalog-page">
 
       <main className="content">
         {/* Shown while loading too, so it doesn't push the page down when products arrive */}
@@ -323,7 +303,7 @@ export default function CasesPage() {
             <p>
               {isModelPage
                 ? `Back covers cut for the ${activeModel}'s camera and buttons. Cash on delivery, dispatched in 24–48 hrs.`
-                : "Stylish back covers for iPhone and Samsung Galaxy. Cash on delivery, dispatched in 24–48 hrs across India."}
+                : ""}
             </p>
           </div>
           <div className="catalog-meta">
@@ -331,6 +311,8 @@ export default function CasesPage() {
             <span>Secure checkout by Razorpay</span>
           </div>
         </section>
+
+        <TrustBar />
 
         <div className="toolbar catalog-toolbar">
           <div className="toolbar-left">
@@ -380,17 +362,6 @@ export default function CasesPage() {
           </div>
 
           <div className="toolbar-right">
-            <input
-              className="search"
-              type="search"
-              placeholder="Search covers…"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              aria-label="Search products"
-            />
             <select
               className="model-select sort-select"
               value={sortBy}

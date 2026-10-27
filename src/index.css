@@ -1,17 +1,25 @@
 :root {
-  --ink: #171512;
-  --paper: #f4f0e6;
-  --board: #fefefe;
-  --board-dot: #c7bfa9;
-  --signal: #bd4420; /* was #e1552b — darkened to pass WCAG AA text contrast */
-  --grip: #15693f;
-  --grip-bright: #1e8f55;
-  --slate: #726a5a;
-  --line: #c7bfa9;
+  /* Neutral, high-contrast palette — the brand orange is reserved for sale
+     badges and small accents so the store reads calm and trustworthy. */
+  --ink: #111827;
+  --paper: #f5f5f4;       /* panels and image backgrounds */
+  --board: #ffffff;       /* page background */
+  --board-dot: #e5e7eb;
+  --signal: #bd4420;      /* accent / sale — passes WCAG AA on white */
+  --grip: #15803d;        /* success / trust green */
+  --grip-bright: #16a34a;
+  --slate: #4b5563;       /* secondary text */
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --line-strong: #d1d5db;
+  --radius: 12px;
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.06);
+  --shadow-md: 0 8px 24px rgba(17, 24, 39, 0.08);
 
-  --font-display: "Space Grotesk", sans-serif;
-  --font-body: "Inter", sans-serif;
-  --font-mono: "IBM Plex Mono", monospace;
+  --font-display: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Was IBM Plex Mono; labels now use the body face for a cleaner look. */
+  --font-mono: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -24,6 +32,7 @@ body {
   color: var(--ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
 }
 
 button { font-family: inherit; }

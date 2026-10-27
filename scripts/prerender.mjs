@@ -14,7 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEnv } from "vite";
 import { initializeApp } from "firebase/app";
-import { collection, getDocs, getFirestore, terminate } from "firebase/firestore";
+import { collection, getDocs, getFirestore, query, terminate, where } from "firebase/firestore";
 import {
   BRAND,
   DEFAULT_DESCRIPTION,
@@ -87,6 +87,21 @@ async function loadCatalog() {
           variantsById[p.id] = vs.docs.map((d) => d.data()).filter((v) => v.active !== false);
         })
       );
+    }
+    // Published customer reviews -> merged into product.reviews so the
+    // static Product JSON-LD carries the same star rating as the live page.
+    try {
+      const reviewSnap = await getDocs(query(collection(db, "reviews"), where("status", "==", "published")));
+      const byProduct = {};
+      for (const d of reviewSnap.docs) {
+        const r = d.data();
+        (byProduct[r.productId] ||= []).push({ name: r.name, text: r.text, rating: r.rating, verified: true });
+      }
+      for (const p of products) {
+        if (byProduct[p.id]) p.reviews = [...byProduct[p.id], ...(Array.isArray(p.reviews) ? p.reviews : [])];
+      }
+    } catch (err) {
+      console.warn(`[prerender] could not load reviews: ${err.message}`);
     }
     return { products, variantsById };
   } finally {
@@ -326,7 +341,7 @@ ${trustFacts}<p>Marketed by ${BRAND}, India. Country of origin: China (imported)
     ["/shipping-policy", `Shipping Policy | ${BRAND}`, "Dispatch in 24–48 hrs, delivery in 3–7 business days across India, free shipping over ₹500, cash on delivery available."],
     ["/returnPolicy", `Return & Refund Policy | ${BRAND}`, "2-day return/exchange window, free replacement for items damaged in transit with an unboxing video. Full details."],
     ["/privacy-policy", `Privacy Policy | ${BRAND}`, `How ${BRAND} collects, uses and protects your personal information when you shop with us.`],
-    ["/orderstatus", `Track Your Order | ${BRAND}`, "Track your CASEWALL order with your order ID, phone number or email."],
+    ["/orderstatus", `Track Your Order | ${BRAND}`, "Track your CASEWALL order: sign in with Google to see all your orders, or use your order ID."],
   ];
   for (const [urlPath, title, description] of infoPages) {
     await writeRoute(
@@ -385,6 +400,67 @@ ${sitemap
 ${models.map((m) => `- [${m} cases & covers](${SITE_URL}${modelPath(m)}) – ${byModel.get(m).length} design${byModel.get(m).length === 1 ? "" : "s"}`).join("\n")}
 `;
   await writeFile(path.join(dist, "llms.txt"), llms);
+
+  // Google Merchant Center product feed (free Shopping listings). In Merchant
+  // Center: Products → Add products → "Add products from a file" → enter
+  // https://casewall.in/merchant-feed.xml → daily scheduled fetch.
+  // Price/image/stock describe the variant ProductPage selects by default,
+  // so the feed always matches what the landing page shows.
+  const feedItems = visible
+    .map((p) => {
+      const variants = catalog.variantsById[p.id] || [];
+      const v = p.hasVariants ? variants[0] : p;
+      if (!v) return null;
+      const price = Number(v.price);
+      if (!Number.isFinite(price) || price <= 0) return null;
+      const mrp = Number(p.hasVariants ? v.mrp : p.mrp);
+      const stockLeft =
+        typeof v.stock === "number" ? Number(v.stock) - Number(v.reservedStock || 0) : Infinity;
+      const inStock = v.inStock !== false && v.active !== false && stockLeft > 0;
+      const variantImages = Array.isArray(v.imageUrls) && v.imageUrls.length ? v.imageUrls : null;
+      const imgs = variantImages || productImages(p);
+      if (!imgs.length) return null;
+      const feedImage = (u) => (u.includes("res.cloudinary.com") ? cloudinaryUrl(u, 1200).replace("f_auto", "f_jpg") : u);
+      const pModels = modelsForProduct(p);
+      const title = productTitle(p).replace(` | ${BRAND}`, "").slice(0, 150);
+      const onSale = Number.isFinite(mrp) && mrp > price;
+      return `    <item>
+      <g:id>${esc(p.id)}</g:id>
+      <g:title>${esc(title)}</g:title>
+      <g:description>${esc(p.description || productDescription(p)).slice(0, 5000)}</g:description>
+      <g:link>${SITE_URL}/product/${esc(p.id)}</g:link>
+      <g:image_link>${esc(feedImage(imgs[0]))}</g:image_link>${imgs
+        .slice(1, 10)
+        .map((u) => `\n      <g:additional_image_link>${esc(feedImage(u))}</g:additional_image_link>`)
+        .join("")}
+      <g:availability>${inStock ? "in_stock" : "out_of_stock"}</g:availability>
+      <g:price>${onSale ? mrp : price}.00 INR</g:price>${onSale ? `\n      <g:sale_price>${price}.00 INR</g:sale_price>` : ""}
+      <g:brand>${BRAND}</g:brand>
+      <g:condition>new</g:condition>
+      <g:identifier_exists>no</g:identifier_exists>
+      <g:google_product_category>${p.isJewellery ? "188" : "2353"}</g:google_product_category>
+      <g:product_type>${p.isJewellery ? "Jewellery" : `Phone Cases${pModels.length === 1 ? ` &gt; ${esc(pModels[0])}` : ""}`}</g:product_type>
+      <g:shipping>
+        <g:country>IN</g:country>
+        <g:price>${price >= 500 ? 0 : 80}.00 INR</g:price>
+      </g:shipping>
+    </item>`;
+    })
+    .filter(Boolean);
+  await writeFile(
+    path.join(dist, "merchant-feed.xml"),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
+  <channel>
+    <title>${BRAND}</title>
+    <link>${SITE_URL}/</link>
+    <description>${esc(DEFAULT_DESCRIPTION)}</description>
+${feedItems.join("\n")}
+  </channel>
+</rss>
+`
+  );
+  console.log(`[prerender] wrote merchant-feed.xml with ${feedItems.length} products`);
 
   console.log(`[prerender] wrote ${sitemap.length} pages, sitemap.xml and llms.txt`);
 }

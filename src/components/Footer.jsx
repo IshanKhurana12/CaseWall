@@ -1,103 +1,109 @@
-import "../policy.css";
+import { Link } from "react-router-dom";
+import { STORE_NAME } from "../config";
+import { LockIcon } from "./Icons";
+import "../siteChrome.css";
 
 const WHATSAPP_NUMBER = "919871335748"; // 9871335748 with country code
+const AMAZON_URL = "https://www.amazon.in/dp/B0HHYF2RYZ";
+const INSTAGRAM_URL = "https://www.instagram.com/thecasewall";
+
+const POPULAR_MODELS = [
+  ["iPhone 17 Pro Max", "/cases/iphone-17-pro-max"],
+  ["iPhone 17 Pro", "/cases/iphone-17-pro"],
+  ["iPhone 16", "/cases/iphone-16"],
+  ["iPhone 15 Pro", "/cases/iphone-15-pro"],
+  ["Samsung Galaxy S25 Ultra", "/cases/samsung-galaxy-s25-ultra"],
+];
 
 export default function Footer() {
-  const helpLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-    "Hi! I have a question about my cover."
-  )}`;
+  const helpLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi! I have a question about my order.")}`;
 
   return (
-    <footer className="site-footer">
-      <div className="footer-inner">
-        {/* Brand */}
-        <div className="footer-brand-col">
-          <a href="/" className="footer-logo">
-            CASEWALL
+    <footer className="ft">
+      <div className="ft-inner">
+        <div className="ft-brand">
+          <Link to="/" className="ft-logo">
+            {STORE_NAME}
+          </Link>
+          <p>Phone cases and covers for iPhone and Samsung Galaxy, shipped across India.</p>
+          <a className="ft-wa" href={helpLink} target="_blank" rel="noopener noreferrer">
+            <WhatsAppIcon />
+            Chat on WhatsApp
           </a>
-          <p>Questions about an order? Our team replies fastest on WhatsApp.</p>
-          <p>
+          <p className="ft-contact">
             Call / WhatsApp: <a href="tel:+919871335748">+91 98713 35748</a>
             <br />
             Instagram:{" "}
-            <a href="https://www.instagram.com/thecasewall" target="_blank" rel="noopener noreferrer">
+            <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
               @thecasewall
             </a>
+            <br />
+            Also on{" "}
+            <a href={AMAZON_URL} target="_blank" rel="noopener noreferrer">
+              Amazon.in
+            </a>
           </p>
-          <a
-            className="wa-button wa-button-primary"
-            href={helpLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ marginTop: "20px" }}
-          >
-            <WhatsAppIcon />
-            Ask on WhatsApp
-          </a>
         </div>
 
-        {/* Shipping */}
-        <div className="footer-shipping-col">
-          <p className="footer-col-title" style={{marginBottom:10}}>Shipping</p>
-          <ul className="footer-links footer-note-list">
-            <li>Orders dispatch within 24–48 hrs</li>
-            <li>Delivered in 3–7 business days, pan-India</li>
-            <li>Cash on delivery available</li>
-            <li>Secure payments via Razorpay — UPI, cards, net banking</li>
+        <nav className="ft-col" aria-label="Shop">
+          <p className="ft-title">Shop</p>
+          <ul>
+            <li>
+              <Link to="/">All phone cases</Link>
+            </li>
+            {POPULAR_MODELS.map(([name, href]) => (
+              <li key={href}>
+                <Link to={href}>{name} cases</Link>
+              </li>
+            ))}
           </ul>
-        </div>
+        </nav>
 
-        {/* Policies */}
-        <div className="footer-policies-col">
-          <p className="footer-col-title" style={{marginBottom:10}} >Policies</p>
-          <ul className="footer-links">
+        <nav className="ft-col" aria-label="Help">
+          <p className="ft-title">Help</p>
+          <ul>
             <li>
-              <a className="footer-link" href="/about">
-                About &amp; Contact
-              </a>
+              <Link to="/account">My account &amp; orders</Link>
             </li>
             <li>
-              <a className="footer-link" href="/orderstatus">
-                Track Your Order
-              </a>
+              <Link to="/orderstatus">Track your order</Link>
             </li>
             <li>
-              <a className="footer-link" href="/shipping-policy">
-                Shipping Policy
-              </a>
+              <Link to="/shipping-policy">Shipping policy</Link>
             </li>
             <li>
-              <a className="footer-link" href="/returnPolicy">
-                Return &amp; Refund Policy
-              </a>
+              <Link to="/returnPolicy">Returns &amp; refunds</Link>
             </li>
             <li>
-              <a className="footer-link" href="/privacy-policy">
-                Privacy Policy
-              </a>
-            </li>
-            <li>
-              <a
-                className="footer-link"
-                href={helpLink}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Start a Return on WhatsApp
-              </a>
+              <Link to="/about">About &amp; contact</Link>
             </li>
           </ul>
+        </nav>
+
+        <div className="ft-col">
+          <p className="ft-title">We accept</p>
+          <ul className="ft-pay" aria-label="Payment methods">
+            {["UPI", "Visa", "Mastercard", "RuPay", "Net banking", "Cash on delivery"].map((m) => (
+              <li key={m}>{m}</li>
+            ))}
+          </ul>
+          <p className="ft-secure">
+            <LockIcon size={16} /> Secure checkout by Razorpay
+          </p>
         </div>
       </div>
 
-      <div className="footer-bottom">
-        <p>© {new Date().getFullYear()} Casewall. All rights reserved.</p>
-        <ul className="footer-bottom-links">
+      <div className="ft-bottom">
+        <p>© {new Date().getFullYear()} Casewall, India. All rights reserved.</p>
+        <ul>
           <li>
-            <a href="/privacy-policy">Privacy</a>
+            <Link to="/privacy-policy">Privacy</Link>
           </li>
           <li>
-            <a href="/returnPolicy">Returns &amp; Refunds</a>
+            <Link to="/returnPolicy">Returns</Link>
+          </li>
+          <li>
+            <Link to="/shipping-policy">Shipping</Link>
           </li>
         </ul>
       </div>

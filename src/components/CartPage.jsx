@@ -6,8 +6,11 @@ import { db } from "../firebase";
 import { STORE_NAME, SHIPPING_RATE_RUPEES, SHIPPING_FREE_THRESHOLD_RUPEES } from "../config";
 import "../cartCheckout.css";
 import NotifyModal from "./NotifyModal";
+import Footer from "./Footer";
 import useSeo from "../hooks/useSeo";
 import { responsiveImg } from "../lib/images";
+import { LockIcon, TruckIcon } from "./Icons";
+import "../siteChrome.css";
 
 function formatPrice(value, currency = "INR") {
   if (value === undefined || value === null || value === "") return "—";
@@ -34,8 +37,10 @@ export default function CartPage() {
   const itemsRef = React.useRef(items);
   itemsRef.current = items;
   // Shipping uses site-wide configurable constants
-  const shippingRupees = subtotal >= SHIPPING_FREE_THRESHOLD_RUPEES ? 0 : SHIPPING_RATE_RUPEES;
   const discountedSubtotal = Math.max(0, subtotal - (Number(couponDiscount) || 0));
+  // Same rule as checkout and api/create-order.js: free shipping is decided
+  // on the total after the coupon.
+  const shippingRupees = discountedSubtotal >= SHIPPING_FREE_THRESHOLD_RUPEES ? 0 : SHIPPING_RATE_RUPEES;
   const totalRupees = discountedSubtotal + shippingRupees;
 
   React.useEffect(() => {
@@ -146,19 +151,20 @@ export default function CartPage() {
 
   return (
     <div className="page">
-      <div className="cc-wrap">
-        <Link to="/" className="pp-back-link">← Continue shopping</Link>
-        <h1 className="cc-title">Your Cart</h1>
+      <div className="co-wrap">
+        <Link to="/" className="crumb-back">← Continue shopping</Link>
+        <h1 className="co-title">Your cart</h1>
 
         {items.length === 0 ? (
-          <div className="state-block">
-            <p className="state-title">Your cart is empty.</p>
-            <Link to="/" className="pp-btn pp-btn-primary" style={{ display: "inline-block", marginTop: 14, textDecoration: "none", textAlign: "center" }}>
+          <div className="empty-panel card-panel">
+            <p className="empty-title">Your cart is empty</p>
+            <p className="muted">Find a case you'll love for your phone.</p>
+            <Link to="/" className="btn btn-primary">
               Browse {STORE_NAME}
             </Link>
           </div>
         ) : (
-          <>
+          <div className="cart-layout">
             <div className="cart-list">
               {items.map((item) => (
                 <div className="cart-row" key={item.key}>
@@ -177,7 +183,7 @@ export default function CartPage() {
                     <p className="cart-row-price">{formatPrice(item.price, item.currency)}</p>
                   </div>
                   <div className="cart-row-controls">
-                    <div className="pp-qty-stepper">
+                    <div className="qty-stepper">
                       <button
                         onClick={() => updateQty(item.productId, item.variantId, item.qty - 1)}
                         aria-label="Decrease quantity"
@@ -224,7 +230,14 @@ export default function CartPage() {
               ))}
             </div>
 
-            <div className="cart-summary">
+            <aside className="cart-summary card-panel" aria-label="Order summary">
+              <h2 className="panel-title">Order summary</h2>
+              {shippingRupees > 0 && (
+                <p className="free-ship-hint">
+                  <TruckIcon size={18} />
+                  Add {formatPrice(SHIPPING_FREE_THRESHOLD_RUPEES - discountedSubtotal)} more for free delivery
+                </p>
+              )}
               {couponCode && (
                 <div className="cart-summary-row" style={{ color: "var(--grip)", marginBottom: 6 }}>
                   <span>Coupon {couponCode}</span>
@@ -245,7 +258,7 @@ export default function CartPage() {
                   )}
                 </span>
               </div>
-              <div className="cart-summary-row" style={{ fontWeight: 700, marginTop: 8 }}>
+              <div className="cart-summary-row cart-summary-grand">
                 <span>Total</span>
                 <span className="cart-summary-total">{formatPrice(totalRupees)}</span>
               </div>
@@ -271,16 +284,16 @@ export default function CartPage() {
                   </button>
                 )}
               </div>
-              <p className="cart-summary-note">{`Shipping is Free for Orders above ${SHIPPING_FREE_THRESHOLD_RUPEES}.`}</p>
-
-              <button className="pp-btn pp-btn-primary" style={{ width: "100%", marginTop: 16 }} onClick={() => navigate("/checkout")}>
-                Proceed to Checkout
+              <button className="btn btn-primary btn-block btn-lg" style={{ marginTop: 16 }} onClick={() => navigate("/checkout")}>
+                <LockIcon size={18} /> Proceed to checkout
               </button>
-            </div>
-          </>
+              <p className="co-secure-note">Secure checkout · UPI, cards, net banking or cash on delivery</p>
+            </aside>
+          </div>
         )}
         <NotifyModal message={modalMsg} onClose={() => setModalMsg("")} />
       </div>
+      <Footer />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { getAdminDb } from "./_lib/firebaseAdmin.js";
 import { getRazorpay } from "./_lib/razorpay.js";
 import { getDiscountForCart } from "./_lib/discounts.js";
+import { InvalidTokenError, cleanAddress, getUserFromRequest, upsertAddress } from "./_lib/auth.js";
 
 const RESERVATION_MINUTES = 15;
 
@@ -40,7 +41,22 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { items, contact, address, couponCode, paymentMethod = "PREPAID" } = req.body || {};
+    const { items, contact, address, couponCode, paymentMethod = "PREPAID", saveAddress = false } = req.body || {};
+
+    // Optional: a signed-in customer's order is linked to their account.
+    // Guests (no token) can still check out.
+    let user = null;
+    try {
+      user = await getUserFromRequest(req);
+    } catch (err) {
+      if (err instanceof InvalidTokenError) {
+        return res.status(401).json({ error: "Your sign-in has expired. Please sign in again or refresh the page." });
+      }
+      throw err;
+    }
+    // Signed-in customers: confirmation and tracking always go to their
+    // verified Google email (checkout doesn't ask for one).
+    if (user?.email && contact && typeof contact === "object") contact.email = user.email;
     const normalizedPaymentMethod = String(paymentMethod).trim().toUpperCase();
     if (!["PREPAID", "COD"].includes(normalizedPaymentMethod)) {
       return res.status(400).json({ error: "Unsupported payment method." });
@@ -161,6 +177,12 @@ export default async function handler(req, res) {
           color: variant.color || null,
           price,
           qty: it.qty,
+          // Thumbnail for order history.
+          image:
+            (Array.isArray(variant.imageUrls) && variant.imageUrls[0]) ||
+            (Array.isArray(product.imageUrls) && product.imageUrls[0]) ||
+            product.imageUrl ||
+            null,
         };
         // Only attach these if the product actually has them — don't
         // write hsnCode/gstRate as null/undefined for products that
@@ -233,6 +255,7 @@ export default async function handler(req, res) {
       const grandTotalRupeesRounded = Math.round(grandTotalRupeesLocal * 100) / 100;
 
       tx.set(orderRef, {
+        uid: user?.uid || null,
         items: resolved,
         contact: {
           name: String(contact.name).slice(0, 120),
@@ -324,6 +347,15 @@ export default async function handler(req, res) {
       await orderRef.update({ razorpayOrderId: razorpayOrder.id });
     } catch (uErr) {
       console.error("Failed to update order with razorpay id:", uErr);
+    }
+
+    // Save a new address to the customer's account. Never blocks the order.
+    if (user && saveAddress) {
+      try {
+        await upsertAddress(db, user.uid, cleanAddress({ ...address, name: contact.name, phone: contact.phone, label: address.label }));
+      } catch (addrErr) {
+        console.warn("Could not save address for", user.uid, addrErr.message);
+      }
     }
 
     return res.status(200).json({
