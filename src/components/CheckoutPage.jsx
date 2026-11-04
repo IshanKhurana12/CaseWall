@@ -7,8 +7,8 @@ import { responsiveImg } from "../lib/images";
 import "../siteChrome.css";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
-import { RAZORPAY_KEY_ID, STORE_NAME, SHIPPING_RATE_RUPEES, SHIPPING_FREE_THRESHOLD_RUPEES } from "../config";
-import { loadRazorpayScript } from "../lib/loadRazorpay";
+import { CASHFREE_MODE, SHIPPING_RATE_RUPEES, SHIPPING_FREE_THRESHOLD_RUPEES } from "../config";
+import { loadCashfreeScript } from "../lib/loadCashfree";
 import "../cartCheckout.css";
 import useSeo from "../hooks/useSeo";
 
@@ -162,68 +162,46 @@ export default function CheckoutPage() {
         },
       });
 
-      const { orderId, razorpayOrderId, amount, currency, keyId } = createData;
+      const { orderId, paymentSessionId, cashfreeMode } = createData;
 
-      const Razorpay = await loadRazorpayScript();
+      const Cashfree = await loadCashfreeScript();
+      const cashfree = Cashfree({ mode: cashfreeMode || CASHFREE_MODE });
 
-      const rzp = new Razorpay({
-        key: keyId || RAZORPAY_KEY_ID,
-        order_id: razorpayOrderId,
-        amount,
-        currency,
-        name: STORE_NAME,
-        description: `Order #${orderId}`,
-        prefill: {
-          name: address.name.trim(),
-          contact: address.phone.trim(),
-          email: orderEmail.trim() || undefined,
-        },
-        notes: { orderId },
-        theme: { color: "#111827" },
-        handler: async function (response) {
-          try {
-            // Payment success from the widget is only a hint — it is NOT
-            // trusted on its own. The server independently verifies the
-            // Razorpay signature before marking the order "paid" in
-            // Firestore, and a Razorpay webhook double-checks the same
-            // thing server-to-server as a safety net.
-            const verifyRes = await fetch("/api/verify-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                orderId,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
-            });
-            const verifyData = await verifyRes.json();
-            if (!verifyRes.ok || !verifyData.ok) {
-              throw new Error(verifyData.error || "Payment verification failed.");
-            }
-            clearCart();
-            navigate(`/order/${orderId}`);
-          } catch (err) {
-            console.error(err);
-            setError("Payment was received but we couldn't confirm it automatically. Don't worry — message us on WhatsApp with your order id and we'll confirm manually.");
-            navigate(`/order/${orderId}`);
-          } finally {
-            setLoading(false);
-          }
-        },
-        modal: {
-          ondismiss: function () {
-            setLoading(false);
-          },
-        },
-      });
+      // Opens Cashfree's checkout as a pop-up on this page. It resolves once
+      // the customer pays, cancels or closes it. Methods that must leave the
+      // site (some netbanking) come back via return_url to /order/:id, which
+      // verifies on arrival.
+      const result = await cashfree.checkout({ paymentSessionId, redirectTarget: "_modal" });
+      if (result?.redirect) return;
 
-      rzp.on("payment.failed", function () {
-        setError("Payment failed or was cancelled. You can try again.");
+      // What the pop-up reports is only a hint — it is NOT trusted on its
+      // own. The server asks Cashfree directly whether this order was paid
+      // before marking it "paid", and a Cashfree webhook does the same
+      // server-to-server as a safety net.
+      try {
+        const verifyRes = await fetch("/api/verify-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId }),
+        });
+        const verifyData = await verifyRes.json();
+        if (verifyData.pending) {
+          setError("Payment failed or was cancelled. You can try again.");
+          setLoading(false);
+          return;
+        }
+        if (!verifyRes.ok || !verifyData.ok) {
+          throw new Error(verifyData.error || "Payment verification failed.");
+        }
+        clearCart();
+        navigate(`/order/${orderId}`);
+      } catch (err) {
+        console.error(err);
+        setError("Payment was received but we couldn't confirm it automatically. Don't worry — message us on WhatsApp with your order id and we'll confirm manually.");
+        navigate(`/order/${orderId}`);
+      } finally {
         setLoading(false);
-      });
-
-      rzp.open();
+      }
     } catch (err) {
       console.error(err);
       setError(err.message || "Something went wrong. Please try again.");
@@ -436,7 +414,7 @@ export default function CheckoutPage() {
               {payButton}
             </div>
             <p className="co-secure-note">
-              Payments are processed securely by Razorpay. By placing the order you agree to our{" "}
+              Payments are processed securely by Cashfree. By placing the order you agree to our{" "}
               <Link to="/returnPolicy">return policy</Link>.
             </p>
           </aside>
@@ -461,7 +439,7 @@ export default function CheckoutPage() {
             <div className="payment-lock-spinner" />
             <p className="payment-lock-title">Processing your payment…</p>
             <p className="payment-lock-sub">
-              Please don't close, refresh, or go back while we confirm your payment with Razorpay.
+              Please don't close, refresh, or go back while we confirm your payment with Cashfree.
             </p>
           </div>
         </div>

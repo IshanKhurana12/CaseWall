@@ -88,7 +88,7 @@ export default function Footer() {
             ))}
           </ul>
           <p className="ft-secure">
-            <LockIcon size={16} /> Secure checkout by Razorpay
+            <LockIcon size={16} /> Secure checkout by Cashfree
           </p>
         </div>
       </div>

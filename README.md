@@ -1,7 +1,7 @@
 # CASEWALL — Phone Cover Store
 
 A full storefront: customers browse products, add them to a cart, and check out with
-Razorpay. Paid orders are shipped through the store's shipping partner, and the order-status
+Cashfree. Paid orders are shipped through the store's shipping partner, and the order-status
 page shows live, server-verified payment status. Returns follow the policy on
 the `/returnPolicy` page (`src/components/Returnpolicy.jsx`): 2-day return/exchange as
 store credit with a ₹100 fee, and free replacement for damaged items with an unboxing video.
@@ -12,12 +12,14 @@ store credit with a ₹100 fee, and free replacement for damaged items with an u
    never the amount that gets charged.
 2. `POST /api/create-order` re-reads each product's real price from Firestore, computes
    the total server-side, creates a Firestore `orders/{id}` doc (`status: "created"`),
-   and creates a matching Razorpay order.
-3. The browser opens Razorpay's checkout widget using the `key_id` (public) — the
-   `key_secret` never leaves the server.
-4. On success, `POST /api/verify-payment` recomputes the Razorpay HMAC signature with the
-   secret key and only then marks the order `"paid"` in Firestore via the Firebase Admin
-   SDK. A Razorpay **webhook** (`/api/razorpay-webhook`) does the same check
+   and creates a matching Cashfree order (same order id), which returns a one-time
+   `payment_session_id`.
+3. The browser opens Cashfree's checkout pop-up with that session id — the Cashfree
+   App ID and Secret Key never leave the server.
+4. When the pop-up closes, `POST /api/verify-payment` asks Cashfree's API directly
+   (with the secret key) whether the order has a successful payment, checks the amount,
+   and only then marks the order `"paid"` in Firestore via the Firebase Admin SDK. A
+   Cashfree **webhook** (`/api/cashfree-webhook`, signature-checked) does the same
    independently, so payment confirmation doesn't rely on the browser staying open.
 5. Once paid, the server records the verified payment and leaves shipment booking to the
    configured shipping partner integration (for example, Shiprocket).
@@ -49,7 +51,7 @@ Then open `src/config.js` and set your WhatsApp number, and check the return-pol
 
 In the Firebase console, open **Firestore Database** and create a collection called
 `products`. Add one document per phone cover. `price` must be a plain number (in rupees)
-since it's used directly, server-side, to compute the Razorpay charge.
+since it's used directly, server-side, to compute the Cashfree charge.
 
 | Field         | Type    | Required | Notes                                            |
 |---------------|---------|----------|---------------------------------------------------|
@@ -68,15 +70,17 @@ copy its "download URL"), or any public image link. Paste that URL into `imageUr
 You don't need to touch any code to add, edit, or remove products — just edit documents in
 the Firestore console and refresh the site.
 
-## 4. Configure server-side integrations (Razorpay, Shipping Partner, Firebase Admin)
+## 4. Configure server-side integrations (Cashfree, Shipping Partner, Firebase Admin)
 
 These go in your **deployment platform's** environment variables (e.g. Vercel → Project →
 Settings → Environment Variables) — never in `.env`/`VITE_...` vars, since those get
 bundled into the browser. Full list and where to find each value is in `.env.example`:
 
-- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` — Razorpay Dashboard → Settings → API Keys
-- `RAZORPAY_WEBHOOK_SECRET` — create a webhook in Razorpay for the `payment.captured`
-  event pointed at `https://yourdomain.com/api/razorpay-webhook`, then paste its secret
+- `CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY` — Cashfree Merchant Dashboard → Developers →
+  API Keys (use the Test keys with `CASHFREE_ENV=sandbox`, Live keys with `production`)
+- `CASHFREE_ENV` — `sandbox` or `production`
+- `SITE_ORIGIN` — your site's URL; used for Cashfree's return URL and webhook URL
+  (`/api/cashfree-webhook`, sent with every order — no dashboard webhook setup needed)
 - shipping-partner credentials for your chosen courier (Shiprocket or another provider) —
   add them in your deployment platform's environment variables when you connect the shipping
   integration
@@ -87,7 +91,8 @@ bundled into the browser. Full list and where to find each value is in `.env.exa
 - `FIREBASE_SERVICE_ACCOUNT` (or the three `FIREBASE_PROJECT_ID` / `FIREBASE_CLIENT_EMAIL`
   / `FIREBASE_PRIVATE_KEY` vars) — from the service account key you generated in step 1
 
-Also set `VITE_RAZORPAY_KEY_ID` (same value as `RAZORPAY_KEY_ID` — it's not secret).
+Also set `VITE_CASHFREE_MODE` (same value as `CASHFREE_ENV` — it's not secret). For
+production, whitelist your domain in Cashfree Dashboard → Developers → Whitelisting.
 
 **Publish the Firestore rules** in `firestore.rules` (Firebase Console → Firestore
 Database → Rules → paste and publish) — this is what stops anyone from writing directly
@@ -156,8 +161,8 @@ vercel
 ```
 
 Set all the environment variables from step 4 in the Vercel dashboard before your first
-real order. Point the Razorpay webhook at your live
-`https://yourdomain.com/api/razorpay-webhook` URL once you have a domain.
+real order, including `SITE_ORIGIN` so Cashfree can reach
+`https://yourdomain.com/api/cashfree-webhook`.
 
 ## Project structure
 
@@ -169,24 +174,25 @@ src/
   context/
     CartContext.jsx         Cart state (localStorage-persisted)
   lib/
-    loadRazorpay.js          Lazily loads the Razorpay checkout script
+    loadCashfree.js          Lazily loads the Cashfree checkout script
   components/
     ProductGrid.jsx / ProductCard.jsx   Catalog grid + card (Add to Cart / Buy Now / WhatsApp)
     ProductPage.jsx          Full product detail page (/product/:id)
     CartPage.jsx             Cart (/cart)
-    CheckoutPage.jsx         Address form + Razorpay checkout (/checkout)
+    CheckoutPage.jsx         Address form + Cashfree checkout (/checkout)
     OrderStatusPage.jsx      Live, read-only order status (/order/:orderId)
   FAQSection.jsx             Renders the FAQs from faqs.js (shared with the SEO prerender)
 
 api/
-  create-order.js            Creates Firestore order + Razorpay order (server-priced)
-  verify-payment.js          Verifies Razorpay signature and marks order paid
-  razorpay-webhook.js        Server-to-server payment confirmation safety net
+  create-order.js            Creates Firestore order + Cashfree order (server-priced)
+  verify-payment.js          Checks the payment with Cashfree and marks order paid
+  cashfree-webhook.js        Server-to-server payment confirmation safety net
   shiprocket-create.js       Creates a Shiprocket order for a paid order
   shiprocket-track.js        Tracks a shipment by AWB or order ID
   _lib/
     firebaseAdmin.js         Firebase Admin SDK singleton (server only)
-    razorpay.js               Razorpay Node SDK singleton (server only)
+    cashfree.js               Cashfree PG API client + webhook signature check (server only)
+    confirmPayment.js         Marks an order paid, commits stock, emails, books shipment
     shiprocket.js             Shiprocket auth, create, and tracking helpers
 
 firestore.rules              Denies all client writes to products/orders

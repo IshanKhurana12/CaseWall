@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { doc, getFirestore, onSnapshot } from "firebase/firestore";
 import { app } from "../firebase";
 
@@ -9,6 +9,7 @@ import { STORE_NAME, WHATSAPP_NUMBER } from "../config";
 import "../cartCheckout.css";
 import useSeo from "../hooks/useSeo";
 import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
 import { CheckIcon } from "./Icons";
 import "../siteChrome.css";
 
@@ -37,6 +38,8 @@ export default function OrderStatusPage() {
   useSeo({ title: "Order Status | CASEWALL", noindex: true });
   const { orderId } = useParams();
   const { user } = useAuth();
+  const { clearCart } = useCart();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [order, setOrder] = useState(null);
   const [state, setState] = useState("loading"); // loading | found | notfound | error
 
@@ -59,6 +62,22 @@ export default function OrderStatusPage() {
     );
     return () => unsub();
   }, [orderId]);
+
+  // Back from a Cashfree redirect (return_url): ask the server to check the
+  // payment with Cashfree. The listener above then shows the verified status.
+  const verifyOnReturn = searchParams.get("verify") === "1";
+  useEffect(() => {
+    if (!verifyOnReturn) return;
+    setSearchParams({}, { replace: true });
+    fetch("/api/verify-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId }),
+    })
+      .then((r) => r.json())
+      .then((data) => data.ok && clearCart())
+      .catch((err) => console.error("verify-payment on return failed:", err));
+  }, [verifyOnReturn, orderId, clearCart, setSearchParams]);
 
   if (state === "loading") {
     return (
@@ -222,7 +241,7 @@ export default function OrderStatusPage() {
                 <div>
                   {String(order.paymentMethod || "").toUpperCase() === "COD"
                     ? "Cash on delivery"
-                    : "Paid online (Razorpay)"}
+                    : "Paid online (Cashfree)"}
                 </div>
               </div>
               {String(order.paymentMethod || "").toUpperCase() === "COD" && (
@@ -237,10 +256,10 @@ export default function OrderStatusPage() {
                   </div>
                 </>
               )}
-              {order.razorpay?.payment_id || order.paymentId || order.razorpayPaymentId ? (
+              {order.cashfreePaymentId || order.razorpayPaymentId ? (
                 <div style={{ marginTop: 8 }}>
-                  <div style={{ color: "var(--slate)" }}>Razorpay payment ID </div>
-                  <div style={{ fontFamily: "monospace", marginTop: 4 }}>{order.razorpay?.payment_id || order.paymentId || order.razorpayPaymentId}</div>
+                  <div style={{ color: "var(--slate)" }}>Payment ID </div>
+                  <div style={{ fontFamily: "monospace", marginTop: 4 }}>{order.cashfreePaymentId || order.razorpayPaymentId}</div>
                 </div>
               ) : null}
             </div>

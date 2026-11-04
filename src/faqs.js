@@ -4,7 +4,7 @@
 export const FAQS = [
   {
     q: "How do I pay for my order?",
-    a: "You can pay online through Razorpay using UPI, net banking or a debit/credit card, or choose cash on delivery. After paying you'll get a confirmation email with your order ID and a link to track it.",
+    a: "You can pay online through Cashfree using UPI, net banking or a debit/credit card, or choose cash on delivery. After paying you'll get a confirmation email with your order ID and a link to track it.",
   },
   {
     q: "Is cash on delivery (COD) available?",

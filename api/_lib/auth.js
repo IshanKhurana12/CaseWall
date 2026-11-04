@@ -55,7 +55,27 @@ export async function getUserFromRequest(req) {
     email: decoded.email ? String(decoded.email).toLowerCase() : null,
     emailVerified: decoded.email_verified === true,
     name: decoded.name || null,
+    provider: decoded.firebase?.sign_in_provider || null,
   };
+}
+
+// Same allowlist as isAdmin() in firestore.rules: an email/password account
+// whose email is listed in ADMIN_EMAILS (comma-separated). Google customers
+// are never admins. Returns the user, or null if the caller isn't an admin.
+export async function getAdminFromRequest(req) {
+  let user;
+  try {
+    user = await getUserFromRequest(req);
+  } catch (err) {
+    if (err instanceof InvalidTokenError) return null;
+    throw err;
+  }
+  const admins = String(process.env.ADMIN_EMAILS || "ishankhurana176@gmail.com")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  if (!user || user.provider !== "password" || !user.email || !admins.includes(user.email)) return null;
+  return user;
 }
 
 // Same validation rules as checkout; returns a cleaned address or throws.

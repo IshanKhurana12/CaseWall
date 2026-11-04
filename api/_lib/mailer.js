@@ -20,6 +20,12 @@ function getTransport() {
   });
 }
 
+// Customer-typed text goes into the HTML email, so escape it — otherwise a
+// "name" could inject links or markup into an email sent from our domain.
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
 export async function sendOrderConfirmationEmail(order, orderId) {
   if (!order?.contact?.email) return;
   const to = String(order.contact.email).trim();
@@ -32,8 +38,8 @@ export async function sendOrderConfirmationEmail(order, orderId) {
   const orderUrl = (process.env.SITE_ORIGIN || "") + `/order/${encodeURIComponent(orderId)}`;
   const text = `Hi ${name},\n\nThank you — your order ${orderId} has been confirmed. You can check the status at ${orderUrl}\n\nAmount: ₹${(Number(order.amount)||0)}\n\nIf you have questions, reply to this email or message us on WhatsApp.\n\nThanks!`;
 
-  const html = `<p>Hi ${name},</p>
-    <p>Thank you — your order <strong>${orderId}</strong> has been confirmed.</p>
+  const html = `<p>Hi ${escapeHtml(name)},</p>
+    <p>Thank you — your order <strong>${escapeHtml(orderId)}</strong> has been confirmed.</p>
     <p>Amount: <strong>₹${(Number(order.amount)||0)}</strong></p>
     <p>You can check the status of your order <a href="${orderUrl}">here</a>.</p>
     <p>Tip: sign in with Google at <a href="${process.env.SITE_ORIGIN || ""}/account">${process.env.SITE_ORIGIN || ""}/account</a> using this email address to see all your orders in one place.</p>

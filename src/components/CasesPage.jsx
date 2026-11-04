@@ -308,7 +308,7 @@ export default function CasesPage() {
           </div>
           <div className="catalog-meta">
             <span>Free shipping over ₹500</span>
-            <span>Secure checkout by Razorpay</span>
+            <span>Secure checkout by Cashfree</span>
           </div>
         </section>
 

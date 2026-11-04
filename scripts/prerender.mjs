@@ -155,7 +155,7 @@ const trustFacts = `<ul>
 <li>Cash on delivery available across India</li>
 <li>Free shipping on orders above ₹500 (₹80 otherwise)</li>
 <li>Orders dispatch within 24–48 hours; delivered in 3–7 business days</li>
-<li>Secure online payments via Razorpay (UPI, cards, net banking)</li>
+<li>Secure online payments via Cashfree (UPI, cards, net banking)</li>
 <li>2-day return/exchange window — <a href="/returnPolicy">see return policy</a></li>
 <li>Support on WhatsApp and phone: +91 98713 35748</li>
 </ul>`;
@@ -390,7 +390,7 @@ ${sitemap
 - Products: phone cases and back covers${models.length ? ` for ${models.length} phone models` : ""}${
     prices(cases) ? `, priced ${prices(cases)}` : ""
   }
-- Payment: UPI, cards and net banking via Razorpay; cash on delivery (₹50 COD handling fee paid online, full order amount paid on delivery)
+- Payment: UPI, cards and net banking via Cashfree; cash on delivery (₹50 COD handling fee paid online, full order amount paid on delivery)
 - Shipping: dispatch in 24–48 hours, delivery in 3–7 business days anywhere in India; free over ₹500, otherwise ₹80
 - Returns: 2-day return/exchange window as store credit (₹100 processing fee); free replacement for transit damage reported within 24 hours with an unboxing video
 - Support: WhatsApp / phone +91 98713 35748; Instagram ${INSTAGRAM_URL}

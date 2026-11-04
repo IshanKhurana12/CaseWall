@@ -1,5 +1,5 @@
 import { getAdminDb } from "./_lib/firebaseAdmin.js";
-import { getRazorpay } from "./_lib/razorpay.js";
+import { createCashfreeOrder, isCashfreeProduction } from "./_lib/cashfree.js";
 import { getDiscountForCart } from "./_lib/discounts.js";
 import { InvalidTokenError, cleanAddress, getUserFromRequest, upsertAddress } from "./_lib/auth.js";
 
@@ -101,7 +101,9 @@ export default async function handler(req, res) {
         const productId = String(raw.productId || "");
         const variantId = raw.variantId ? String(raw.variantId) : "_legacy";
         const qty = Math.max(1, Math.min(20, parseInt(raw.qty, 10) || 1));
-        if (!productId) return null;
+        // Plain ids only — a "/" would let a client point at a different
+        // Firestore path.
+        if (!/^[A-Za-z0-9_-]{1,128}$/.test(productId) || !/^[A-Za-z0-9_-]{1,128}$/.test(variantId)) return null;
         return { productId, variantId, qty };
       })
       .filter(Boolean);
@@ -113,9 +115,8 @@ export default async function handler(req, res) {
     const reservationUntil = new Date(Date.now() + RESERVATION_MINUTES * 60 * 1000).toISOString();
 
     // Reserve stock and create order document atomically.
-    // Firestore stores amounts in RUPEES. Razorpay still needs paise,
-    // so we keep computing the paise versions too, only for the
-    // Razorpay API call and the response below (unchanged behavior).
+    // Firestore stores amounts in RUPEES. The paise versions are kept for
+    // the API response below (unchanged behavior).
     const {
       resolvedItems,
       itemsAmountPaise,
@@ -226,7 +227,7 @@ export default async function handler(req, res) {
       const shippingRupeesRounded = Math.round(shippingRupees * 100) / 100;
       const totalRupeesRounded = Math.round((itemsAmountRupeesRounded - discountAmountRounded + shippingRupeesRounded) * 100) / 100;
 
-      // Paise versions — only used for Razorpay + the API response, same as before.
+      // Paise versions — only used for the API response, same as before.
       const itemsAmountPaiseLocal = Math.round(itemsAmountRupeesRounded * 100);
       const discountAmountPaiseLocal = Math.round(discountAmountRounded * 100);
       const shippingPaiseLocal = Math.round(shippingRupeesRounded * 100);
@@ -307,18 +308,30 @@ export default async function handler(req, res) {
       };
     });
 
-    // Create Razorpay order; if it fails, restore stock and cancel
-    const razorpay = getRazorpay();
-    let razorpayOrder;
+    // Create the Cashfree order (same id as ours); if it fails, restore stock and cancel.
+    const siteOrigin = (process.env.SITE_ORIGIN || `https://${req.headers.host}`).replace(/\/$/, "");
+    let cashfreeOrder;
     try {
-      razorpayOrder = await razorpay.orders.create({
-        amount: paymentAmountPaise,
-        currency: "INR",
-        receipt: orderId,
-        notes: { orderId },
+      cashfreeOrder = await createCashfreeOrder({
+        orderId,
+        amount: paymentAmountPaise / 100,
+        customer: {
+          id: user?.uid || `guest_${contact.phone}`,
+          name: String(contact.name).slice(0, 100),
+          email: String(contact.email),
+          phone: String(contact.phone),
+        },
+        // Used when a payment method redirects away (some netbanking/UPI
+        // flows); the order page re-verifies with the server on arrival.
+        returnUrl: `${siteOrigin}/order/${orderId}?verify=1`,
+        notifyUrl: `${siteOrigin}/api/cashfree-webhook`,
+        // Close the payment window right after our stock hold ends (Cashfree
+        // needs at least 15 minutes). A payment that still lands late is
+        // confirmed normally by confirmPaidOrder.
+        expiresAt: new Date(Date.now() + (RESERVATION_MINUTES + 1) * 60 * 1000).toISOString(),
       });
-    } catch (rpErr) {
-      console.error("Razorpay order creation failed, rolling back reservation:", rpErr);
+    } catch (cfErr) {
+      console.error("Cashfree order creation failed, rolling back reservation:", cfErr, cfErr.details);
       try {
         await db.runTransaction(async (tx) => {
           const orderSnap = await tx.get(orderRef);
@@ -335,18 +348,18 @@ export default async function handler(req, res) {
             const variant = variantSnap.data();
             tx.update(variantRef, { reservedStock: Math.max(0, (variant.reservedStock || 0) - (it.qty || 0)) });
           }
-          tx.update(orderRef, { status: "cancelled", cancelledAt: new Date().toISOString(), cancelledReason: "razorpay_creation_failed" });
+          tx.update(orderRef, { status: "cancelled", cancelledAt: new Date().toISOString(), cancelledReason: "payment_order_creation_failed" });
         });
       } catch (compErr) {
-        console.error("Failed to compensate after razorpay order creation failure:", compErr);
+        console.error("Failed to compensate after payment order creation failure:", compErr);
       }
       return res.status(500).json({ error: "Could not create payment order. Please try again." });
     }
 
     try {
-      await orderRef.update({ razorpayOrderId: razorpayOrder.id });
+      await orderRef.update({ cashfreeOrderId: cashfreeOrder.order_id, cfOrderId: String(cashfreeOrder.cf_order_id) });
     } catch (uErr) {
-      console.error("Failed to update order with razorpay id:", uErr);
+      console.error("Failed to update order with cashfree id:", uErr);
     }
 
     // Save a new address to the customer's account. Never blocks the order.
@@ -360,7 +373,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       orderId,
-      razorpayOrderId: razorpayOrder.id,
+      paymentSessionId: cashfreeOrder.payment_session_id,
       amount: paymentAmountPaise,
       paymentAmount: paymentAmountPaise,
       codAmount: codAmountPaise,
@@ -368,7 +381,7 @@ export default async function handler(req, res) {
       shippingAmount: shippingPaise,
       grandTotal: grandTotalPaise,
       currency: "INR",
-      keyId: process.env.RAZORPAY_KEY_ID,
+      cashfreeMode: isCashfreeProduction() ? "production" : "sandbox",
       reservedUntil: reservationUntil,
     });
   } catch (err) {

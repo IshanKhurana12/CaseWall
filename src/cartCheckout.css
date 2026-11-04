@@ -397,7 +397,7 @@
   margin-top: 20px;
 }
 
-/* ---------- Payment lock overlay (shown while Razorpay payment is processing) ---------- */
+/* ---------- Payment lock overlay (shown while Cashfree payment is processing) ---------- */
 
 .payment-lock-overlay {
   position: fixed;

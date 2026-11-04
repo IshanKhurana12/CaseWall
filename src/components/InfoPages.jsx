@@ -81,7 +81,7 @@ export function AboutPage() {
         <h2>Why shop with us</h2>
         <ul>
           <li>
-            <strong>Secure payments</strong> through Razorpay — UPI, cards and net banking. We
+            <strong>Secure payments</strong> through Cashfree — UPI, cards and net banking. We
             never see or store your card details.
           </li>
           <li>
@@ -183,8 +183,8 @@ export function PrivacyPolicyPage() {
       <section className="policy-section">
         <h2>Payments</h2>
         <p>
-          Online payments are processed by Razorpay. Your card, UPI and bank details go directly
-          to Razorpay — {BRAND} never sees or stores them.
+          Online payments are processed by Cashfree. Your card, UPI and bank details go directly
+          to Cashfree — {BRAND} never sees or stores them.
         </p>
       </section>
 
@@ -192,7 +192,7 @@ export function PrivacyPolicyPage() {
         <h2>Who we share it with</h2>
         <ul>
           <li>Our courier partners, to deliver your order (name, phone and address).</li>
-          <li>Razorpay, to process your payment.</li>
+          <li>Cashfree, to process your payment.</li>
           <li>
             Our hosting, database and email providers, which store and send order information on
             our behalf.

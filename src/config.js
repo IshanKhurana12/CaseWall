@@ -7,11 +7,11 @@ export const WHATSAPP_NUMBER = "919871335748";
 export const STORE_NAME = "CASEWALL";
 export const STORE_TAGLINE = "Cases for phones people actually love";
 
-// Public Razorpay Key ID — this is NOT secret, it's meant to be shipped to
-// the browser (it only identifies your account for the checkout widget).
-// The Key Secret must never appear in frontend code — it lives only in
-// server-side environment variables used by the /api functions.
-export const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
+// Cashfree checkout mode: "sandbox" for testing, "production" for live.
+// The server also returns its own mode with each order, which takes
+// priority. Cashfree's App ID and Secret Key live only in server-side
+// environment variables used by the /api functions — never in frontend code.
+export const CASHFREE_MODE = import.meta.env.VITE_CASHFREE_MODE || "sandbox";
 
 // The return/refund policy lives in src/components/Returnpolicy.jsx (the
 // /returnPolicy page). Summaries in src/faqs.js, InfoPages.jsx,
