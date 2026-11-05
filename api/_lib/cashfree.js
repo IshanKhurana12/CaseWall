@@ -66,11 +66,23 @@ export function createCashfreeOrder({ orderId, amount, customer, returnUrl, noti
   });
 }
 
+// Every payment attempt on an order (SUCCESS, PENDING, FAILED, USER_DROPPED…).
+export async function getOrderPayments(orderId) {
+  const payments = await cashfreeRequest(`/orders/${encodeURIComponent(orderId)}/payments`);
+  return Array.isArray(payments) ? payments : [];
+}
+
 // Returns the successful payment for an order, or null if it isn't paid yet.
 export async function getSuccessfulPayment(orderId) {
-  const payments = await cashfreeRequest(`/orders/${encodeURIComponent(orderId)}/payments`);
-  if (!Array.isArray(payments)) return null;
-  return payments.find((p) => p.payment_status === "SUCCESS") || null;
+  return (await getOrderPayments(orderId)).find((p) => p.payment_status === "SUCCESS") || null;
+}
+
+// Closes a Cashfree order so it can no longer be paid.
+export function terminateCashfreeOrder(orderId) {
+  return cashfreeRequest(`/orders/${encodeURIComponent(orderId)}`, {
+    method: "PATCH",
+    body: { order_status: "TERMINATED" },
+  });
 }
 
 // Cashfree signs webhooks as base64(HMAC-SHA256(timestamp + rawBody, secretKey)).

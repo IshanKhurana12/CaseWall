@@ -186,6 +186,12 @@ export default function CheckoutPage() {
         });
         const verifyData = await verifyRes.json();
         if (verifyData.pending) {
+          // Release the stock hold right away instead of after 15 minutes.
+          await fetch("/api/cancel-order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId }),
+          }).catch((err) => console.error("cancel-order failed:", err));
           setError("Payment failed or was cancelled. You can try again.");
           setLoading(false);
           return;

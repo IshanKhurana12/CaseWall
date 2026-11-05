@@ -62,7 +62,8 @@ export default function ProductCard({ product, priority = false }) {
 
   const outOfStock = !hasVariants && product.inStock === false;
   const hasStockCount = !hasVariants && typeof product.stock === "number";
-  const maxStock = hasStockCount ? Math.max(0, Number(product.stock)) : Infinity;
+  // Units held by someone else's checkout aren't available.
+  const maxStock = hasStockCount ? Math.max(0, Number(product.stock) - Number(product.reservedStock || 0)) : Infinity;
 
   // Legacy cart item for this product (variantId "_legacy"). Only meaningful
   // for non-variant products — variant products always route through the
