@@ -4,6 +4,7 @@ import CasesPage from "./components/CasesPage";
 import { CartProvider } from "./context/CartContext";
 import { Analytics } from "@vercel/analytics/react";
 import SiteHeader from "./components/SiteHeader";
+import ScrollToTop from "./components/ScrollToTop";
 import { AuthProvider } from "./context/AuthContext";
 import { CLEANUP_TRIGGER_INTERVAL_MINUTES } from "./config";
 
@@ -67,6 +68,7 @@ export default function App() {
     <AuthProvider>
     <CartProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <SiteHeader />
         <Suspense fallback={<PageFallback />}>
         <Routes>
