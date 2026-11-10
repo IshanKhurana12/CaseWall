@@ -8,8 +8,7 @@ import JewelryCollection from "./JewelryCollection";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Footer from "./Footer";
 import { getCategoryLabel, getProductCategoryValues } from "../lib/discounts";
-import OfferCarousel from "./OfferCarousel";
-import TrustBar from "./TrustBar";
+import HeroBento from "./HeroBento";
 import useSeo from "../hooks/useSeo";
 import {
   DEFAULT_DESCRIPTION,
@@ -283,38 +282,16 @@ export default function CasesPage() {
     <div className="page catalog-page">
 
       <main className="content">
-        {/* Shown while loading too, so it doesn't push the page down when products arrive */}
-        {(hasAntiYellowProducts || status === "loading") && (
-          <section className="top-offer-section" aria-label="Current offers">
-            <OfferCarousel />
-          </section>
-        )}
+        <HeroBento
+          products={products}
+          isModelPage={isModelPage}
+          activeModel={activeModel}
+          // Shown while loading too, so the tile doesn't swap content when products arrive
+          showOffers={hasAntiYellowProducts || status === "loading"}
+          shopTargetId="shop"
+        />
 
-        <section className="catalog-intro">
-          <div>
-            {isModelPage ? (
-              <nav className="catalog-kicker" aria-label="Breadcrumb">
-                <Link to="/">Home</Link> / {activeModel} cases
-              </nav>
-            ) : (
-              <p className="catalog-kicker">Casewall collection</p>
-            )}
-            <h1>{isModelPage ? `${activeModel} Cases & Covers` : "Phone Cases & Covers"}</h1>
-            <p>
-              {isModelPage
-                ? `Back covers cut for the ${activeModel}'s camera and buttons. Cash on delivery, dispatched in 24–48 hrs.`
-                : ""}
-            </p>
-          </div>
-          <div className="catalog-meta">
-            <span>Free shipping over ₹500</span>
-            <span>Secure checkout by Cashfree</span>
-          </div>
-        </section>
-
-        <TrustBar />
-
-        <div className="toolbar catalog-toolbar">
+        <div className="toolbar catalog-toolbar" id="shop">
           <div className="toolbar-left">
             {/* Category filter: Cases (default) / Jewellery / All */}
             <div className="model-rail" role="tablist" aria-label="Filter by category">
